@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "wynautrankup",
+  "version": "${version}",
+  "name": "WynautRankUp",
+  "description": "Adds a competitive-ranked gamemode to cobblemon",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/wynautrankup/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "io.github.adainish.wynautrankup.WynautRankUp"
+    ]
+  },
+  "mixins": [
+    "wynautrankup.mixins.json",
+    {
+      "config": "wynautrankup.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}

@@ -1,0 +1,67 @@
+package io.github.adainish.wynautrankup.data;
+
+import com.cobblemon.mod.common.Cobblemon;
+import com.cobblemon.mod.common.api.battles.model.PokemonBattle;
+import io.github.adainish.wynautrankup.util.BattleUtil;
+import io.github.adainish.wynautrankup.arenas.Arena;
+
+import java.util.UUID;
+
+public class Match
+{
+    private UUID battleId;
+    private final Player player1;
+    private final Player player2;
+    private transient Arena arena;
+
+    public Match(Player player1, Player player2) {
+        this.player1 = player1;
+        this.player2 = player2;
+    }
+
+    public Player getPlayer1() {
+        return player1;
+    }
+
+    public Player getPlayer2() {
+        return player2;
+    }
+
+    public Arena getArena() {
+        return arena;
+    }
+
+    public void setArena(Arena arena) {
+        this.arena = arena;
+    }
+
+    public UUID startMatch() {
+        if (arena != null) {
+            arena.setInUse(true);
+        }
+        UUID battleUUID = BattleUtil.startShowdownBattle(player1, player2);
+        setBattleId(battleUUID);
+        return battleUUID;
+    }
+
+    public void setBattleId(UUID battleId) {
+        this.battleId = battleId;
+    }
+
+    public UUID getBattleId() {
+        return battleId;
+    }
+
+    public void endMatch()
+    {
+        if (battleId != null) {
+            PokemonBattle battle = Cobblemon.INSTANCE.getBattleRegistry().getBattle(battleId);
+            if (battle != null) {
+                battle.end();
+            }
+        }
+        if (arena != null) {
+            arena.setInUse(false);
+        }
+    }
+}
