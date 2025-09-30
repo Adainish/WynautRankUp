@@ -3,15 +3,16 @@ package io.github.adainish.wynautrankup.season;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Season
 {
-    private String name;
-    private String displayName;
-    private String description;
-    private String rewardDate; // e.g. "1" for 1st of month
-    private List<RewardCriteria> rewardCriteria;
+    private String name = "";
+    private String displayName = "";
+    private String description = "";
+    private String rewardDate = ""; // e.g. "1" for 1st of month
+    private List<RewardCriteria> rewardCriteria = new ArrayList<>();
 
     public String getName() {
         return name;

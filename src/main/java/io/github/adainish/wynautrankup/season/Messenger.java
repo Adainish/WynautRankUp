@@ -38,9 +38,9 @@ public class Messenger
         //give item to player
         if (player.getInventory().add(stack))
         {
-            notify(player, "You have received: " + stack.getHoverName().getString());
+            notify(player, "You have received: " + stack.getDisplayName().getString());
         } else {
-            notify(player, "Your inventory is full, dropping item: " + stack.getHoverName().getString());
+            notify(player, "Your inventory is full, dropping item: " + stack.getDisplayName().getString());
             player.drop(stack, false);
         }
     }

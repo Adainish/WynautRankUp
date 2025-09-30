@@ -5,6 +5,8 @@ import ca.landonjw.gooeylibs2.api.button.PlaceholderButton;
 import ca.landonjw.gooeylibs2.api.button.linked.LinkType;
 import ca.landonjw.gooeylibs2.api.button.linked.LinkedPageButton;
 import ca.landonjw.gooeylibs2.api.template.types.ChestTemplate;
+import com.cobblemon.mod.common.item.PokemonItem;
+import com.cobblemon.mod.common.pokemon.Pokemon;
 import io.github.adainish.wynautrankup.WynautRankUp;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
@@ -44,6 +46,10 @@ public class Util
         return GooeyButton.builder()
                 .display(new ItemStack(Items.GRAY_STAINED_GLASS_PANE))
                 .build();
+    }
+
+    public static ItemStack pokemonIcon(Pokemon pokemon) {
+        return PokemonItem.from(pokemon, 1);
     }
 
     public static ChestTemplate.Builder returnBasicTemplateBuilder() {

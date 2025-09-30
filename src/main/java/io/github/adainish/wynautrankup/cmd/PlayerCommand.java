@@ -4,6 +4,7 @@ import com.cobblemon.mod.common.pokemon.Pokemon;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.adainish.wynautrankup.WynautRankUp;
+import io.github.adainish.wynautrankup.gui.BannedPokemonGUI;
 import io.github.adainish.wynautrankup.util.BattleUtil;
 import io.github.adainish.wynautrankup.util.PermissionUtil;
 import net.minecraft.ChatFormatting;
@@ -20,6 +21,7 @@ public class PlayerCommand {
         List<Component> messages = new ArrayList<>();
         messages.add(Component.literal("Wynaut Rankup Commands:").withStyle(s -> s.withBold(true)).withStyle(ChatFormatting.AQUA));
         messages.add(Component.literal("/ranked help - Displays this message.").withStyle(ChatFormatting.GOLD));
+        messages.add(Component.literal("/ranked banned - Displays a GUI with info about banned Pokemon.").withStyle(ChatFormatting.GOLD));
         messages.add(Component.literal("/ranked stats - Displays your current ELO and rank.").withStyle(ChatFormatting.GOLD));
         messages.add(Component.literal("/ranked leaderboard - Displays the top 10 players by ELO.").withStyle(ChatFormatting.GOLD));
         messages.add(Component.literal("/ranked queue - Shows your current queue status and players in it within your elo range.").withStyle(ChatFormatting.GOLD));
@@ -51,6 +53,29 @@ public class PlayerCommand {
             source.sendSystemMessage(Component.literal("This command can only be run by a player.").withStyle(ChatFormatting.RED));
         }
 
+        return 1;
+    }
+
+    public static int banned(CommandSourceStack source) {
+        if (source.isPlayer())
+        {
+            try {
+                ServerPlayer player = source.getPlayer();
+                if (player == null) {
+                    source.sendSystemMessage(Component.literal("An error occurred while fetching your player data. Please try again later.").withStyle(ChatFormatting.RED));
+                    return 1;
+                }
+                //open banned pokemon gui
+                BannedPokemonGUI bannedPokemonGUI = new BannedPokemonGUI();
+                bannedPokemonGUI.open(player);
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+
+        } else {
+            source.sendSystemMessage(Component.literal("This command can only be run by a player.").withStyle(ChatFormatting.RED));
+        }
         return 1;
     }
 
@@ -167,6 +192,11 @@ public class PlayerCommand {
                 .then(Commands.literal("help")
                         .executes(cc -> help(cc.getSource()))
                 )
+                .then(Commands.literal("banned")
+                        .executes(cc -> banned(cc.getSource())
+                        )
+                )
+
                 .then(Commands.literal("stats")
                         .executes(cc -> stats(cc.getSource()))
                 )

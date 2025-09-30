@@ -1,14 +1,22 @@
 package io.github.adainish.wynautrankup.util;
 
+import ca.landonjw.gooeylibs2.api.button.Button;
+import ca.landonjw.gooeylibs2.api.button.GooeyButton;
 import com.cobblemon.mod.common.api.moves.Move;
+import com.cobblemon.mod.common.api.pokemon.PokemonSpecies;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import io.github.adainish.wynautrankup.data.Player;
 import io.github.adainish.wynautrankup.validator.BannedPokemonRule;
 import io.github.adainish.wynautrankup.validator.TeamValidationConfig;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ItemLore;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 
@@ -183,4 +191,56 @@ public class TeamValidator {
     }
 
 
+    public List<Button> getBannedPokemonButtons() {
+        List<Button> buttons = new ArrayList<>();
+        if (config == null || config.bannedPokemon == null) {
+            return buttons;
+        }
+        for (BannedPokemonRule rule : config.bannedPokemon) {
+            if (rule.species == null) continue; // Species is required to create a Pokemon instance
+            if (PokemonSpecies.INSTANCE.getByName(rule.species) == null)
+                continue;
+            Pokemon pokemon = PokemonSpecies.INSTANCE.getByName(rule.species).create(100);
+            StringBuilder lore = new StringBuilder();
+            if (rule.form != null && !rule.form.isEmpty())
+                lore.append("§e• Form: §f").append(rule.form).append(" §7(Required for a ban)\n");
+            else
+                lore.append("§7• Form: None\n");
+
+            if (rule.ability != null && !rule.ability.isEmpty())
+                lore.append("§e• Ability: §f").append(rule.ability).append(" §7(Required for a ban)\n");
+            else
+                lore.append("§7• Ability: None\n");
+
+            if (rule.heldItem != null && !rule.heldItem.isEmpty())
+                lore.append("§e• Held Item: §f").append(rule.heldItem).append(" §7(Required for a ban)\n");
+            else
+                lore.append("§7• Held Item: None\n");
+
+            if (rule.moves != null && !rule.moves.isEmpty()) {
+                lore.append("§e• Banned Moves:\n");
+                for (String move : rule.moves) {
+                    lore.append("  §c- ").append(move).append(" §7(Required for a ban)\n");
+                }
+            } else {
+                lore.append("§7• Banned Moves: None\n");
+            }
+
+            if (lore.isEmpty())
+                lore.append("§cThis Pokémon is fully banned.");
+
+            Button button = GooeyButton.builder()
+                    .display(Util.pokemonIcon(pokemon))
+                    .with(DataComponents.CUSTOM_NAME, Component.literal(
+                            rule.species != null && !rule.species.isEmpty()
+                                    ? "§e" + rule.species.substring(0, 1).toUpperCase() + rule.species.substring(1).toLowerCase()
+                                    : "§cUnknown"
+                    ))
+                    .with(DataComponents.LORE, new ItemLore(Util.formattedComponentList(
+                            lore.toString().isEmpty() ? List.of("Banned") : List.of(lore.toString().split("\n")))))
+                    .build();
+            buttons.add(button);
+        }
+        return buttons;
+    }
 }

@@ -1,4 +1,4 @@
-package io.github.adainish.wynautrankup.shop;
+package io.github.adainish.wynautrankup.gui;
 
 import ca.landonjw.gooeylibs2.api.UIManager;
 import ca.landonjw.gooeylibs2.api.helpers.PaginationHelper;

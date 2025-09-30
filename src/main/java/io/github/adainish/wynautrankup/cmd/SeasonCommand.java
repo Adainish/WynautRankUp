@@ -125,40 +125,50 @@ public class SeasonCommand {
                         .then(Commands.argument("seasonName", StringArgumentType.word())
                                 .then(Commands.argument("displayName", StringArgumentType.greedyString())
                                         .executes(ctx -> {
-                                            String name = StringArgumentType.getString(ctx, "seasonName");
-                                            String displayName = StringArgumentType.getString(ctx, "displayName");
-                                            if (WynautRankUp.instance.seasonManager.getSeasonById(name) != null) {
-                                                ctx.getSource().sendMessage(Component.literal("Season already exists: " + name));
-                                                return 0;
-                                            }
-                                            Season newSeason = new Season();
-                                            newSeason.setName(name);
-                                            newSeason.setDisplayName(displayName);
-                                            newSeason.setDescription("A new season.");
-                                            //current date + 4 months for configurability later
-                                            LocalDate rewardDate = LocalDate.now().plusMonths(4);
-                                            String rewardDateString = String.format("%02d/%02d/%04d", rewardDate.getDayOfMonth(), rewardDate.getMonthValue(), rewardDate.getYear());
-                                            newSeason.setRewardDate(rewardDateString);
-
-                                            // example reward criteria
-                                            RewardCriteria rewardCriteria = new RewardCriteria();
-                                            rewardCriteria.setType("item");
-                                            rewardCriteria.getCommands().add("give {player} minecraft:diamond 1");
-                                            rewardCriteria.getItems().add("minecraft:emerald");
-                                            rewardCriteria.setEndDate(rewardDate);
-                                            rewardCriteria.setPokemonType("");
-                                            rewardCriteria.setMinElo(1000);
-                                            rewardCriteria.setMaxElo(3000);
-                                            rewardCriteria.setStreakCount(0);
-
-                                            newSeason.getRewardCriteria().add(rewardCriteria);
-
                                             try {
-                                                WynautRankUp.instance.seasonManager.addSeason(newSeason);
-                                                ctx.getSource().sendMessage(Component.literal("Created new season: " + displayName));
-                                            } catch (Exception e) {
-                                                ctx.getSource().sendMessage(Component.literal("Failed to create season: " + e.getMessage()));
+                                                String name = StringArgumentType.getString(ctx, "seasonName");
+                                                String displayName = StringArgumentType.getString(ctx, "displayName");
+                                                if (WynautRankUp.instance.seasonManager.getSeasonById(name) != null) {
+                                                    ctx.getSource().sendMessage(Component.literal("Season already exists: " + name));
+                                                    return 0;
+                                                }
+                                                Season newSeason = new Season();
+                                                newSeason.setName(name);
+                                                newSeason.setDisplayName(displayName);
+                                                newSeason.setDescription("A new season.");
+                                                //current date + 4 months for configurability later
+                                                LocalDate rewardDate = LocalDate.now().plusMonths(4);
+                                                String rewardDateString = String.format("%02d/%02d/%04d", rewardDate.getDayOfMonth(), rewardDate.getMonthValue(), rewardDate.getYear());
+                                                newSeason.setRewardDate(rewardDateString);
+
+                                                // example reward criteria
+                                                RewardCriteria rewardCriteria = new RewardCriteria();
+                                                rewardCriteria.setType("item");
+                                                rewardCriteria.getCommands().add("give {player} minecraft:diamond 1");
+                                                rewardCriteria.getItems().add("minecraft:emerald");
+                                                //start date is now, end date is reward date
+                                                LocalDate now = LocalDate.now().plusMonths(3);
+                                                String nowString = String.format("%02d/%02d/%04d", now.getDayOfMonth(), now.getMonthValue(), now.getYear());
+                                                rewardCriteria.setStartDate(nowString);
+                                                rewardCriteria.setEndDate(rewardDateString);
+                                                rewardCriteria.setPokemonType("");
+                                                rewardCriteria.setMinElo(1000);
+                                                rewardCriteria.setMaxElo(3000);
+                                                rewardCriteria.setStreakCount(0);
+
+                                                newSeason.getRewardCriteria().add(rewardCriteria);
+
+                                                try {
+                                                    WynautRankUp.instance.seasonManager.addSeason(newSeason);
+                                                    ctx.getSource().sendMessage(Component.literal("Created new season: " + displayName));
+                                                } catch (Exception e) {
+                                                    ctx.getSource().sendMessage(Component.literal("Failed to create season: " + e.getMessage()));
+                                                }
+                                            } catch (Exception e)
+                                            {
+                                                e.printStackTrace();
                                             }
+
                                             return 1;
                                         })
                                 )

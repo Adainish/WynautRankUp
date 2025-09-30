@@ -5,7 +5,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.adainish.wynautrankup.WynautRankUp;
-import io.github.adainish.wynautrankup.shop.ShopGUI;
+import io.github.adainish.wynautrankup.gui.ShopGUI;
 import io.github.adainish.wynautrankup.shop.ShopItem;
 import io.github.adainish.wynautrankup.util.PermissionUtil;
 import net.minecraft.ChatFormatting;

@@ -1,24 +1,24 @@
 package io.github.adainish.wynautrankup.season;
 
-import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 public class RewardCriteria
 {
-    private String type;
-    private int minElo;
-    private int maxElo;
-    private int streakCount;
-    private String tier;
-    private String pokemonType;
-    private List<String> commands;
-    private List<String> items;
+    private String type = "";
+    private int minElo = 0;
+    private int maxElo = 0;
+    private int streakCount = 0;
+    private String tier = "";
+    private String pokemonType = "";
+    private List<String> commands =  new ArrayList<>();
+    private List<String> items = new ArrayList<>();
 
-    private List<Condition> conditions; // Multi-condition support
-    private LocalDate startDate; // Time-based goal start
-    private LocalDate endDate;   // Time-based goal end
-    private List<String> requiredTeamTypes; // Team composition
+    private List<Condition> conditions = new ArrayList<>(); // Multi-condition support
+    private String startDate = ""; // Store as ISO string, e.g. "2024-06-01"
+    private String endDate = "";   // Store as ISO string, e.g. "2024-06-30"
+    private List<String> requiredTeamTypes = new ArrayList<>(); // Team composition
 
 
     public String getType() {
@@ -93,19 +93,19 @@ public class RewardCriteria
         this.conditions = conditions;
     }
 
-    public LocalDate getStartDate() {
+    public String getStartDate() {
         return startDate;
     }
 
-    public void setStartDate(LocalDate startDate) {
+    public void setStartDate(String startDate) {
         this.startDate = startDate;
     }
 
-    public LocalDate getEndDate() {
+    public String getEndDate() {
         return endDate;
     }
 
-    public void setEndDate(LocalDate endDate) {
+    public void setEndDate(String endDate) {
         this.endDate = endDate;
     }
 
