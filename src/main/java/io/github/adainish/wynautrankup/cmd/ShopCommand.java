@@ -21,7 +21,7 @@ public class ShopCommand
     public static final String ADMIN_PERMISSION_NODE = "wynautrankup.admin";
 
     public static LiteralArgumentBuilder<CommandSourceStack> getShopCommand() {
-        return Commands.literal("shop")
+        return Commands.literal("rankedshop")
                 .requires(source -> {
                     if (source.isPlayer()) {
                         try {
