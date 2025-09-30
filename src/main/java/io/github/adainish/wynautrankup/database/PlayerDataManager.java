@@ -52,10 +52,11 @@ public class PlayerDataManager {
                 pendingRewardsStatement.executeUpdate();
 
                 String createBalancesTable = "CREATE TABLE IF NOT EXISTS player_balances (" +
-                        "uuid TEXT PRIMARY KEY," +
+                        "uuid VARCHAR(36) PRIMARY KEY," +
                         "balance INTEGER NOT NULL DEFAULT 0)";
                 PreparedStatement balanceStatement = connection.prepareStatement(createBalancesTable);
                 balanceStatement.executeUpdate();
+
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -317,7 +318,7 @@ public class PlayerDataManager {
         try (Connection conn = WynautRankUp.instance.databaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                      "INSERT INTO player_balances (uuid, balance) VALUES (?, ?) " +
-                             "ON CONFLICT(uuid) DO UPDATE SET balance = ?")) {
+                             "ON DUPLICATE KEY UPDATE balance = ?")) {
             ps.setString(1, uuid);
             ps.setInt(2, amount);
             ps.setInt(3, amount);
@@ -326,6 +327,7 @@ public class PlayerDataManager {
             e.printStackTrace();
         }
     }
+
 
     public void adjustBalance(String uuid, int delta) {
         int current = getBalance(uuid);

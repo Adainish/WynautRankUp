@@ -33,9 +33,16 @@ public class Messenger
     }
 
     public void giveItem(ServerPlayer player, ItemStack stack) {
+        stack = stack.copy();
         notifyReward(player.getUUID(), player.getDisplayName().getString(), stack.getHoverName().getString());
         //give item to player
-        player.getInventory().add(stack);
+        if (player.getInventory().add(stack))
+        {
+            notify(player, "You have received: " + stack.getHoverName().getString());
+        } else {
+            notify(player, "Your inventory is full, dropping item: " + stack.getHoverName().getString());
+            player.drop(stack, false);
+        }
     }
 
     public void giveItem(ServerPlayer player, String data) {
@@ -45,7 +52,13 @@ public class Messenger
 
         Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(data));
         ItemStack stack = new ItemStack(item, 1);
-        player.getInventory().add(stack);
+        if (player.getInventory().add(stack))
+        {
+            notify(player, "You have received: " + stack.getHoverName().getString());
+        } else {
+            notify(player, "Your inventory is full, dropping item: " + stack.getHoverName().getString());
+            player.drop(stack, false);
+        }
     }
 
     public void executeCommandWithNoNotify(ServerPlayer player, String data) throws CommandSyntaxException {

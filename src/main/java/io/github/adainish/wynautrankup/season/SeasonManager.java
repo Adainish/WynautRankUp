@@ -13,7 +13,7 @@ import java.util.List;
 
 public class SeasonManager
 {
-    private String configDir = "config/WynautRankUp/seasons";
+    private String configDir = "config/WynautRankup/seasons";
     private Season currentSeason;
     private final List<Season> seasons = new ArrayList<>();
 

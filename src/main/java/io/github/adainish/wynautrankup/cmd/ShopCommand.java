@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.adainish.wynautrankup.WynautRankUp;
+import io.github.adainish.wynautrankup.shop.ShopGUI;
 import io.github.adainish.wynautrankup.shop.ShopItem;
 import io.github.adainish.wynautrankup.util.PermissionUtil;
 import net.minecraft.ChatFormatting;
@@ -32,6 +33,12 @@ public class ShopCommand
                         return true;
                     }
                     return true;
+                })
+                .executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                    ShopGUI shopGUI = new ShopGUI();
+                    shopGUI.open(player);
+                    return 1;
                 })
                 .then(Commands.literal("add")
                         .requires(source -> {
@@ -84,6 +91,92 @@ public class ShopCommand
                                     return 1;
                                 })
                         )
+                )
+                .then(Commands.literal("balance")
+                        .executes(ctx -> {
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            int balance = WynautRankUp.instance.playerDataManager.getBalance(String.valueOf(player.getUUID()));
+                            ctx.getSource().sendSuccess(() -> Component.literal("Your shop balance: " + balance), false);
+                            return 1;
+                        })
+                )
+
+                .then(Commands.literal("setbalance")
+                        .requires(source -> {
+                            if (source.isPlayer()) {
+                                try {
+                                    return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), ADMIN_PERMISSION_NODE);
+                                } catch (CommandSyntaxException e) {
+                                    source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
+                                }
+                            } else {
+                                return true;
+                            }
+                            return true;
+                        })
+                        .then(Commands.argument("player", StringArgumentType.word())
+                                .then(Commands.argument("amount", IntegerArgumentType.integer(0))
+                                        .executes(ctx -> {
+                                            String playerName = StringArgumentType.getString(ctx, "player");
+                                            int amount = IntegerArgumentType.getInteger(ctx, "amount");
+                                            ServerPlayer target = ctx.getSource().getServer().getPlayerList().getPlayerByName(playerName);
+                                            if (target == null) {
+                                                ctx.getSource().sendFailure(Component.literal("Player not found."));
+                                                return 0;
+                                            }
+                                            WynautRankUp.instance.playerDataManager.setBalance(String.valueOf(target.getUUID()), amount);
+                                            ctx.getSource().sendSuccess(() -> Component.literal("Set " + playerName + "'s balance to " + amount), false);
+                                            return 1;
+                                        })
+                                )
+                        )
+                )
+
+                .then(Commands.literal("addbalance")
+                        .requires(source -> PermissionUtil.hasPermission(source.getPlayer().getUUID(), ADMIN_PERMISSION_NODE))
+                        .then(Commands.argument("player", StringArgumentType.word())
+                                .then(Commands.argument("amount", IntegerArgumentType.integer(1))
+                                        .executes(ctx -> {
+                                            String playerName = StringArgumentType.getString(ctx, "player");
+                                            int amount = IntegerArgumentType.getInteger(ctx, "amount");
+                                            ServerPlayer target = ctx.getSource().getServer().getPlayerList().getPlayerByName(playerName);
+                                            if (target == null) {
+                                                ctx.getSource().sendFailure(Component.literal("Player not found."));
+                                                return 0;
+                                            }
+                                            WynautRankUp.instance.playerDataManager.adjustBalance(String.valueOf(target.getUUID()), amount);
+                                            ctx.getSource().sendSuccess(() -> Component.literal("Added " + amount + " to " + playerName + "'s balance."), false);
+                                            return 1;
+                                        })
+                                )
+                        )
+                )
+
+                .then(Commands.literal("help")
+                        .requires(source -> {
+                            if (source.isPlayer()) {
+                                try {
+                                    return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), ADMIN_PERMISSION_NODE);
+                                } catch (CommandSyntaxException e) {
+                                    source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
+                                }
+                            } else {
+                                return true;
+                            }
+                            return true;
+                        })
+                        .executes(ctx -> {
+                            ctx.getSource().sendSuccess(() -> Component.literal(
+                                    "/shop - Open shop\n" +
+                                            "/shop balance - View your balance\n" +
+                                            "/shop add <id> <price> - Add item\n" +
+                                            "/shop remove <id> - Remove item\n" +
+                                            "/shop edit <id> <field> <value> - Edit item\n" +
+                                            "/shop setbalance <player> <amount> - Set player balance\n" +
+                                            "/shop addbalance <player> <amount> - Add to player balance"
+                            ), false);
+                            return 1;
+                        })
                 )
                 .then(Commands.literal("edit")
                         .requires(source -> {

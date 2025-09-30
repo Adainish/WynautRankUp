@@ -1,5 +1,7 @@
 package io.github.adainish.wynautrankup.shop;
 
+import ca.landonjw.gooeylibs2.api.button.Button;
+import ca.landonjw.gooeylibs2.api.button.GooeyButton;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -7,19 +9,21 @@ import io.github.adainish.wynautrankup.WynautRankUp;
 import io.github.adainish.wynautrankup.season.Messenger;
 import io.github.adainish.wynautrankup.util.ItemStackAdapter;
 import io.github.adainish.wynautrankup.util.PermissionUtil;
+import io.github.adainish.wynautrankup.util.TextUtil;
+import io.github.adainish.wynautrankup.util.Util;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemLore;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import static net.minecraft.world.item.Items.GOLD_INGOT;
 
@@ -38,7 +42,10 @@ public class ShopManager
 
     public void writeDefaultConfig() {
         File file = new File(configPath);
-        file.mkdirs();
+        // Create parent directories, not the file itself
+        if (file.getParentFile() != null) {
+            file.getParentFile().mkdirs();
+        }
         if (file.exists()) {
             return;
         }
@@ -59,6 +66,10 @@ public class ShopManager
 
     public void loadFromConfig() {
         File file = new File(configPath);
+        // Create parent directories, not the file itself
+        if (file.getParentFile() != null) {
+            file.getParentFile().mkdirs();
+        }
         if (file.exists()) {
             writeDefaultConfig();
         }
@@ -76,6 +87,10 @@ public class ShopManager
 
     public void saveToConfig() {
         File file = new File(configPath);
+        // Create parent directories, not the file itself
+        if (file.getParentFile() != null) {
+            file.getParentFile().mkdirs();
+        }
         if (file.exists()) {
             try (FileWriter writer = new FileWriter(file)) {
                 gson.toJson(items, writer);
@@ -91,6 +106,11 @@ public class ShopManager
     public List<ShopItem> getItems() { return List.copyOf(items.values()); }
 
 
+
+    public List<Button> getShopItemButtons() {
+        return items.values().stream().map(ShopItem::getShopItemButton).toList();
+    }
+
     public boolean purchaseItem(UUID playerUuid, String itemId) {
         ShopItem item = items.get(itemId);
         if (item == null) return false;
@@ -103,7 +123,7 @@ public class ShopManager
 
         WynautRankUp.instance.playerDataManager.adjustBalance(playerUuid.toString(), -item.getPrice());
 
-        messenger.giveItem(serverPlayer, item.getItemStack());
+        messenger.giveItem(serverPlayer, item.getItemStack().copy());
         return true;
     }
 
