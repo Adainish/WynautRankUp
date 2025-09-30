@@ -29,23 +29,6 @@ public class DatabaseManager
         return DriverManager.getConnection(DATABASE_URL);
     }
 
-
-
-    public void initializeDatabase() {
-        try (Connection connection = getConnection()) {
-            String createTableSQL = """
-                CREATE TABLE IF NOT EXISTS wynaut_rank_up_player_data (
-                    player_id VARCHAR(36) PRIMARY KEY,
-                    elo INTEGER DEFAULT 1000
-                );
-                
-            """;
-            connection.createStatement().execute(createTableSQL);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
     public void closeDatabase() {
         // shutting down the database connection
         try {

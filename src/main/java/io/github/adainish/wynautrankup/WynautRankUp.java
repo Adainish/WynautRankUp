@@ -76,7 +76,6 @@ public class WynautRankUp implements ModInitializer {
         databaseConfig = DatabaseConfig.loadFromFile();
         this.databaseManager = new DatabaseManager();
         databaseManager.DATABASE_URL = databaseConfig.databaseUrl;
-        databaseManager.initializeDatabase();
 
         TeamValidationConfig teamValidationConfig = new TeamValidationConfig();
         teamValidator = new TeamValidator();

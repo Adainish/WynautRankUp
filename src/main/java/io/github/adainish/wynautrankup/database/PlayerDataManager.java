@@ -1,5 +1,6 @@
 package io.github.adainish.wynautrankup.database;
 
+import com.google.common.base.Joiner;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.adainish.wynautrankup.WynautRankUp;
 import io.github.adainish.wynautrankup.data.PlayerDataStorage;
@@ -30,14 +31,15 @@ public class PlayerDataManager {
         asyncExecutor.submitTask(() -> {
             try (Connection connection = WynautRankUp.instance.databaseManager.getConnection()) {
                 String createTableSQL = """
-                                            CREATE TABLE IF NOT EXISTS wynaut_rank_up_player_data (
-                                                player_id TEXT,
-                                                season_id TEXT,
-                                                elo INTEGER DEFAULT 1000,
-                                                win_streak INTEGER DEFAULT 0,
-                                                PRIMARY KEY (player_id, season_id)
-                                            );
+                            CREATE TABLE IF NOT EXISTS wynaut_rank_up_player_data (
+                                player_id VARCHAR(36),
+                                season_id VARCHAR(36),
+                                elo INTEGER DEFAULT 1000,
+                                win_streak INTEGER DEFAULT 0,
+                                PRIMARY KEY (player_id, season_id)
+                            );
                         """;
+
                 PreparedStatement statement = connection.prepareStatement(createTableSQL);
                 statement.executeUpdate();
                 String createPendingRewardsTable = """
@@ -83,7 +85,6 @@ public class PlayerDataManager {
         }, asyncExecutor.getExecutorService());
     }
 
-    // Add setSeasonProgress method:
     public void setSeasonProgress(UUID playerId, SeasonProgress progress) {
         asyncExecutor.submitTask(() -> {
             try (Connection connection = WynautRankUp.instance.databaseManager.getConnection()) {
@@ -186,12 +187,76 @@ public class PlayerDataManager {
         });
     }
 
+    // Returns a list of player IDs and their ELOs for a season, sorted by ELO descending
+    public CompletableFuture<List<PlayerEloEntry>> getLeaderboardForSeason(String seasonId, int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<PlayerEloEntry> leaderboard = new ArrayList<>();
+            try (Connection connection = WynautRankUp.instance.databaseManager.getConnection()) {
+                String query = "SELECT player_id, elo FROM wynaut_rank_up_player_data WHERE season_id = ? ORDER BY elo DESC LIMIT ?";
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setString(1, seasonId);
+                statement.setInt(2, limit);
+                ResultSet rs = statement.executeQuery();
+                while (rs.next()) {
+                    leaderboard.add(new PlayerEloEntry(rs.getString("player_id"), rs.getInt("elo")));
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            return leaderboard;
+        }, asyncExecutor.getExecutorService());
+    }
+
+    // Returns the rank (1-based) of a player in a season, or -1 if not found
+    public CompletableFuture<Integer> getPlayerRankInSeason(UUID playerId, String seasonId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (Connection connection = WynautRankUp.instance.databaseManager.getConnection()) {
+                String query = "SELECT player_id, elo, RANK() OVER (ORDER BY elo DESC) as rank FROM wynaut_rank_up_player_data WHERE season_id = ?";
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setString(1, seasonId);
+                ResultSet rs = statement.executeQuery();
+                while (rs.next()) {
+                    if (rs.getString("player_id").equals(playerId.toString())) {
+                        return rs.getInt("rank");
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            return -1;
+        }, asyncExecutor.getExecutorService());
+    }
+
+    public CompletableFuture<Integer> getCurrentWinStreak(UUID uuid) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (Connection connection = WynautRankUp.instance.databaseManager.getConnection()) {
+                String query = "SELECT win_streak FROM wynaut_rank_up_player_data WHERE player_id = ? AND season_id = ?";
+                PreparedStatement statement = connection.prepareStatement(query);
+                statement.setString(1, uuid.toString());
+                statement.setString(2, WynautRankUp.instance.seasonManager.getCurrentSeasonId());
+                ResultSet resultSet = statement.executeQuery();
+
+                if (resultSet.next()) {
+                    return resultSet.getInt("win_streak");
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            return 0;
+        }, asyncExecutor.getExecutorService());
+    }
+
+    // Helper record for leaderboard entries
+    public record PlayerEloEntry(String playerId, int elo) {
+    }
+
+
     public void saveAllPlayerData() {
-        asyncExecutor.submitTask(() -> {
-            playerDataStorage.getAllPlayers().forEach(player -> {
-                setElo(player.getId(), player.getElo());
-            });
-        });
+//        asyncExecutor.submitTask(() -> {
+//            playerDataStorage.getAllPlayers().forEach(player -> {
+//                setElo(player.getId(), player.getElo());
+//            });
+//        });
     }
 
     // Only one loop per player, and reward distribution is grouped.

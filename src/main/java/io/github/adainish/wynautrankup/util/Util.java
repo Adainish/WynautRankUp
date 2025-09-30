@@ -7,6 +7,7 @@ import ca.landonjw.gooeylibs2.api.button.linked.LinkedPageButton;
 import ca.landonjw.gooeylibs2.api.template.types.ChestTemplate;
 import com.cobblemon.mod.common.item.PokemonItem;
 import com.cobblemon.mod.common.pokemon.Pokemon;
+import com.mojang.authlib.GameProfile;
 import io.github.adainish.wynautrankup.WynautRankUp;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
@@ -15,10 +16,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.item.enchantment.Enchantment;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class Util
@@ -52,6 +57,25 @@ public class Util
         return PokemonItem.from(pokemon, 1);
     }
 
+    /**
+     * Get the player's head as an itemstack
+     * @return the player's head as an itemstack
+     */
+    public static ItemStack getPlayerHead(String userName, UUID uuid) {
+        ItemStack skullStack = new ItemStack(Items.PLAYER_HEAD);
+        if (userName != null && uuid != null) {
+            Optional<GameProfile> gameprofile = WynautRankUp.instance.server.getProfileCache().get(uuid);
+            if (gameprofile.isPresent()) {
+                skullStack.set(DataComponents.PROFILE, new ResolvableProfile(gameprofile.get()));
+            } else {
+                // Fallback: create a profile with the given name and uuid
+                GameProfile fallbackProfile = new GameProfile(uuid, userName);
+                skullStack.set(DataComponents.PROFILE, new ResolvableProfile(fallbackProfile));
+            }
+        }
+        return skullStack;
+    }
+
     public static ChestTemplate.Builder returnBasicTemplateBuilder() {
         ChestTemplate.Builder builder = ChestTemplate.builder(5);
         builder.fill(filler());
@@ -73,5 +97,15 @@ public class Util
                 .set(0, 5, next)
                 .rectangle(1, 1, 3, 7, placeHolderButton);
         return builder;
+    }
+
+    public static String getPlayerName(String stringUUID) {
+        UUID uuid = UUID.fromString(stringUUID);
+        Optional<GameProfile> profile = WynautRankUp.instance.server.getProfileCache().get(uuid);
+        if (profile.isPresent()) {
+            return profile.get().getName();
+        } else {
+            return "Unknown";
+        }
     }
 }

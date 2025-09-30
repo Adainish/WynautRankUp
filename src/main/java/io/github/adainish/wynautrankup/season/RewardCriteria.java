@@ -6,6 +6,8 @@ import java.util.UUID;
 
 public class RewardCriteria
 {
+    private String name = "";
+    private String description = "";
     private String type = "";
     private int minElo = 0;
     private int maxElo = 0;
@@ -14,6 +16,7 @@ public class RewardCriteria
     private String pokemonType = "";
     private List<String> commands =  new ArrayList<>();
     private List<String> items = new ArrayList<>();
+    private List<String> rewardsDescriptions = new ArrayList<>();
 
     private List<Condition> conditions = new ArrayList<>(); // Multi-condition support
     private String startDate = ""; // Store as ISO string, e.g. "2024-06-01"
@@ -124,5 +127,29 @@ public class RewardCriteria
         // Additional checks for streakCount, tier, pokemonType, etc. would go here
 
         return meetsElo; // && other conditions
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public List<String> getRewardsDescriptions() {
+        return rewardsDescriptions;
+    }
+
+    public void setRewardsDescriptions(List<String> rewardsDescriptions) {
+        this.rewardsDescriptions = rewardsDescriptions;
     }
 }

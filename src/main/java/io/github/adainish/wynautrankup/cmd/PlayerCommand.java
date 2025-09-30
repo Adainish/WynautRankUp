@@ -5,6 +5,8 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.adainish.wynautrankup.WynautRankUp;
 import io.github.adainish.wynautrankup.gui.BannedPokemonGUI;
+import io.github.adainish.wynautrankup.gui.LeaderboardGUI;
+import io.github.adainish.wynautrankup.gui.SeasonsGUI;
 import io.github.adainish.wynautrankup.util.BattleUtil;
 import io.github.adainish.wynautrankup.util.PermissionUtil;
 import net.minecraft.ChatFormatting;
@@ -22,7 +24,7 @@ public class PlayerCommand {
         messages.add(Component.literal("Wynaut Rankup Commands:").withStyle(s -> s.withBold(true)).withStyle(ChatFormatting.AQUA));
         messages.add(Component.literal("/ranked help - Displays this message.").withStyle(ChatFormatting.GOLD));
         messages.add(Component.literal("/ranked banned - Displays a GUI with info about banned Pokemon.").withStyle(ChatFormatting.GOLD));
-        messages.add(Component.literal("/ranked stats - Displays your current ELO and rank.").withStyle(ChatFormatting.GOLD));
+        messages.add(Component.literal("/ranked stats - Displays your current ELO and rank as well as open the extended info menu.").withStyle(ChatFormatting.GOLD));
         messages.add(Component.literal("/ranked leaderboard - Displays the top 10 players by ELO.").withStyle(ChatFormatting.GOLD));
         messages.add(Component.literal("/ranked queue - Shows your current queue status and players in it within your elo range.").withStyle(ChatFormatting.GOLD));
         messages.add(Component.literal("/ranked queue leave - Opts you out of the ranked queue.").withStyle(ChatFormatting.GOLD));
@@ -43,12 +45,14 @@ public class PlayerCommand {
             int currentElo = 1000; //get from db
             currentElo = WynautRankUp.instance.playerDataManager.getElo(player.getUUID()).join();
             String rank = WynautRankUp.instance.rankManager.getRankStringForElo(currentElo);
-            // we can make this a method later
 
             //send message
             source.sendSystemMessage(Component.literal("Your current ELO: ").withStyle(ChatFormatting.AQUA).append(Component.literal(String.valueOf(currentElo)).withStyle(ChatFormatting.GOLD)));
             source.sendSystemMessage(Component.literal("Your current Rank: ").withStyle(ChatFormatting.AQUA).append(Component.literal(rank).withStyle(ChatFormatting.GOLD)));
 
+            //now we proceed to open the seasons gui
+            SeasonsGUI seasonsGUI = new SeasonsGUI();
+            seasonsGUI.open(player);
         } else {
             source.sendSystemMessage(Component.literal("This command can only be run by a player.").withStyle(ChatFormatting.RED));
         }
@@ -170,6 +174,25 @@ public class PlayerCommand {
         return 1;
     }
 
+    public static int leaderboard(CommandSourceStack source) {
+        if (source.isPlayer()) {
+            ServerPlayer player = source.getPlayer();
+            if (player == null) {
+                source.sendSystemMessage(Component.literal("An error occurred while fetching your player data. Please try again later.").withStyle(ChatFormatting.RED));
+                return 1;
+            }
+
+            //get current season id
+            String seasonId = WynautRankUp.instance.seasonManager.getCurrentSeasonId();
+            LeaderboardGUI leaderboardGUI = new LeaderboardGUI();
+            leaderboardGUI.open(player, seasonId);
+        } else {
+            source.sendSystemMessage(Component.literal("This command can only be run by a player.").withStyle(ChatFormatting.RED));
+        }
+
+        return 1;
+    }
+
     public static LiteralArgumentBuilder<CommandSourceStack> getCommand() {
         return Commands.literal("ranked")
                 .requires(source -> {
@@ -202,10 +225,7 @@ public class PlayerCommand {
                 )
                 // leaderboard command
                 .then(Commands.literal("leaderboard")
-                        .executes(cc -> {
-                            // execute leaderboard
-                            return 1;
-                        })
+                        .executes(cc -> leaderboard(cc.getSource()))
                 )
                 .then(
                         Commands.literal("queue")

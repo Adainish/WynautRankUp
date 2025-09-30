@@ -63,4 +63,14 @@ public class Season
             return false; // Invalid format
         }
     }
+
+    public boolean isActive() {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        try {
+            LocalDate rewardDay = LocalDate.parse(rewardDate, formatter);
+            return LocalDate.now().isBefore(rewardDay) || LocalDate.now().isEqual(rewardDay);
+        } catch (DateTimeParseException e) {
+            return false; // Invalid format
+        }
+    }
 }

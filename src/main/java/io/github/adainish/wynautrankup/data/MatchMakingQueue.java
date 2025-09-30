@@ -269,7 +269,7 @@ public class MatchMakingQueue
             if (best1 == null || best2 == null) return Optional.empty();
             Match match = new Match(best1.getPlayer(), best2.getPlayer());
             match.setArena(availableArena); // Assign arena to match
-            return Optional.of(new Match(best1.getPlayer(), best2.getPlayer()));
+            return Optional.of(match);
         }
     }
 
