@@ -202,29 +202,42 @@ public class TeamValidator {
                 continue;
             Pokemon pokemon = PokemonSpecies.INSTANCE.getByName(rule.species).create(100);
             StringBuilder lore = new StringBuilder();
-            if (rule.form != null && !rule.form.isEmpty())
-                lore.append("§e• Form: §f").append(rule.form).append(" §7(Required for a ban)\n");
-            else
+            if (rule.form != null && !rule.form.isEmpty()) {
+                String capForm = rule.form.substring(0, 1).toUpperCase() + rule.form.substring(1);
+                lore.append("§e• Form: §f").append(capForm).append(" §7(Required for a ban)\n");
+            } else {
                 lore.append("§7• Form: None\n");
+            }
 
-            if (rule.ability != null && !rule.ability.isEmpty())
-                lore.append("§e• Ability: §f").append(rule.ability).append(" §7(Required for a ban)\n");
-            else
+
+            if (rule.ability != null && !rule.ability.isEmpty()) {
+                String ability = rule.ability.substring(0, 1).toUpperCase() + rule.ability.substring(1);
+                lore.append("§e• Ability: §f").append(ability).append(" §7(Required for a ban)\n");
+            } else {
                 lore.append("§7• Ability: None\n");
+            }
 
-            if (rule.heldItem != null && !rule.heldItem.isEmpty())
-                lore.append("§e• Held Item: §f").append(rule.heldItem).append(" §7(Required for a ban)\n");
+            if (rule.heldItem != null && !rule.heldItem.isEmpty()) {
+                String cleanItem = rule.heldItem.replaceFirst("^(cobblemon:|minecraft:)", "");
+                if (!cleanItem.isEmpty()) {
+                    cleanItem = cleanItem.substring(0, 1).toUpperCase() + cleanItem.substring(1);
+                }
+                lore.append("§e• Held Item: §f").append(cleanItem).append(" §7(Required for a ban)\n");
+            }
+
             else
                 lore.append("§7• Held Item: None\n");
 
             if (rule.moves != null && !rule.moves.isEmpty()) {
                 lore.append("§e• Banned Moves:\n");
                 for (String move : rule.moves) {
-                    lore.append("  §c- ").append(move).append(" §7(Required for a ban)\n");
+                    String capMove = move.substring(0, 1).toUpperCase() + move.substring(1);
+                    lore.append("  §c- ").append(capMove).append(" §7(Required for a ban)\n");
                 }
             } else {
                 lore.append("§7• Banned Moves: None\n");
             }
+
 
             if (lore.isEmpty())
                 lore.append("§cThis Pokémon is fully banned.");
