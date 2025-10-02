@@ -3,11 +3,13 @@ package io.github.adainish.wynautrankup.tracker;
 import io.github.adainish.wynautrankup.WynautRankUp;
 import io.github.adainish.wynautrankup.data.Match;
 import io.github.adainish.wynautrankup.util.EloCalculator;
+import io.github.adainish.wynautrankup.util.Location;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -61,8 +63,13 @@ public class RankedBattleTracker
         }
     }
 
+    public boolean isRepeatOpponent(UUID player1, UUID player2) {
+        return WynautRankUp.instance.matchmakingQueue.getMatchResultRecorder().countRecentMatches(player1, player2, 1) > 0;
+    }
+
     public void rankedBattleEnded(Match match, UUID uuid, UUID winnerId)
     {
+        boolean isRepeatOpponent = isRepeatOpponent(match.getPlayer1().getId(), match.getPlayer2().getId());
         int winnerElo = 0;
         int loserElo = 0;
         try {
@@ -80,6 +87,13 @@ public class RankedBattleTracker
         System.out.println("Winner ELO: " + winnerElo + " Loser ELO: " + loserElo);
         int eloChange = EloCalculator.calculateEloChange(winnerElo, loserElo, true);
         System.out.println("Elo change: " + eloChange);
+
+        // Apply repeat opponent modifier if needed
+        if (isRepeatOpponent) {
+            double modifier = WynautRankUp.instance.generalConfig.repeatOpponentEloModifier;
+            eloChange = (int) Math.round(eloChange * modifier);
+            System.out.println("Elo change after modifier due to repeat opponents: " + eloChange);
+        }
 
         int adjustedWinnerElo = winnerElo + eloChange;
         int adjustedLoserElo = loserElo - eloChange;
@@ -105,8 +119,6 @@ public class RankedBattleTracker
 
         //TODO: implement rewarding system
 
-        //TODO: Implement tp system to teleport players to designated location if online
-
         //remove invulnerability and notify players of their new ELO as well as teleport them to a designated location
         if (match.getPlayer1().getOptionalServerPlayer().isPresent()) {
             ServerPlayer serverPlayer = match.getPlayer1().getOptionalServerPlayer().get();
@@ -129,8 +141,7 @@ public class RankedBattleTracker
             }
         }
 
-
-
+        match.endMatch();
     }
 }
 

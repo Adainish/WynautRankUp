@@ -39,9 +39,20 @@ public class PlayerDataManager {
                                 PRIMARY KEY (player_id, season_id)
                             );
                         """;
-
                 PreparedStatement statement = connection.prepareStatement(createTableSQL);
                 statement.executeUpdate();
+                String createResultsTableSQL = """
+                    CREATE TABLE IF NOT EXISTS wynaut_rank_up_match_results (
+                        id SERIAL PRIMARY KEY,
+                        winner_id UUID NOT NULL,
+                        loser_id UUID NOT NULL,
+                        winner_elo_change INT NOT NULL,
+                        loser_elo_change INT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                """;
+                PreparedStatement resultsStatement = connection.prepareStatement(createResultsTableSQL);
+                resultsStatement.executeUpdate();
                 String createPendingRewardsTable = """
                             CREATE TABLE IF NOT EXISTS pending_rewards (
                                 player_id TEXT,

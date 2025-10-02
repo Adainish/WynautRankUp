@@ -1,5 +1,6 @@
 package io.github.adainish.wynautrankup.data;
 
+import com.cobblemon.mod.common.Cobblemon;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import io.github.adainish.wynautrankup.WynautRankUp;
 import io.github.adainish.wynautrankup.arenas.Arena;
@@ -265,6 +266,34 @@ public class MatchMakingQueue
                     best2 = entry2;
                 }
             }
+
+            // Check both players for being offline or already in a battle, remove and notify if needed
+            if (best1 != null && best2 != null) {
+                for (PlayerQueueEntry entry : List.of(best1, best2)) {
+                    UUID playerId = entry.getPlayer().getId();
+                    Optional<ServerPlayer> optionalPlayer = PermissionUtil.getOptionalServerPlayer(playerId);
+
+                    // Offline check
+                    if (optionalPlayer.isEmpty()) {
+                        queue.remove(playerId);
+                        optionalPlayer.ifPresent(player ->
+                                player.sendSystemMessage(Component.literal("You have been removed from the ranked queue because you went offline.").withStyle(s -> s.withColor(0xFF5555)))
+                        );
+                        return Optional.empty();
+                    }
+
+                    // Already in battle check
+                    if (Cobblemon.INSTANCE.getBattleRegistry().getBattleByParticipatingPlayerId(playerId) != null) {
+                        queue.remove(playerId);
+                        optionalPlayer.ifPresent(player ->
+                                player.sendSystemMessage(Component.literal("You have been removed from the ranked queue because you are already in a battle.").withStyle(s -> s.withColor(0xFF5555)))
+                        );
+                        return Optional.empty();
+                    }
+                }
+            }
+
+
 
             if (best1 == null || best2 == null) return Optional.empty();
             Match match = new Match(best1.getPlayer(), best2.getPlayer());

@@ -40,4 +40,8 @@ public class Arena
             }
         }
     }
+
+    public void addPlayerPosition(Location loc) {
+        this.playerPositions.add(loc);
+    }
 }

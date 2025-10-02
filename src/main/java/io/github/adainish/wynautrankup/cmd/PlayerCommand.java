@@ -1,5 +1,6 @@
 package io.github.adainish.wynautrankup.cmd;
 
+import com.cobblemon.mod.common.Cobblemon;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -134,6 +135,11 @@ public class PlayerCommand {
                         source.sendSystemMessage(Component.literal("Your current team is not legal for ranked battles. Please ensure you have a full team of 6 Pokémon and that they comply with all ranked battle rules.").withStyle(ChatFormatting.RED));
                         List<String> teamIllegalityReasons = WynautRankUp.instance.teamValidator.getTeamIllegality(team);
                         teamIllegalityReasons.forEach(reason -> source.sendSystemMessage(Component.literal("- " + reason).withStyle(ChatFormatting.RED)));
+                        return 1;
+                    }
+
+                    if (Cobblemon.INSTANCE.getBattleRegistry().getBattleByParticipatingPlayerId(player.getUUID()) != null) {
+                        source.sendSystemMessage(Component.literal("You are currently in a battle and cannot join the ranked queue.").withStyle(ChatFormatting.RED));
                         return 1;
                     }
                     List<Pokemon> copyedTeam = new ArrayList<>(team);

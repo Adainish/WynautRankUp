@@ -2,8 +2,10 @@ package io.github.adainish.wynautrankup.data;
 
 import com.cobblemon.mod.common.Cobblemon;
 import com.cobblemon.mod.common.api.battles.model.PokemonBattle;
+import io.github.adainish.wynautrankup.WynautRankUp;
 import io.github.adainish.wynautrankup.util.BattleUtil;
 import io.github.adainish.wynautrankup.arenas.Arena;
+import io.github.adainish.wynautrankup.util.Location;
 
 import java.util.UUID;
 
@@ -61,7 +63,19 @@ public class Match
             }
         }
         if (arena != null) {
-            arena.setInUse(false);
+            WynautRankUp.instance.arenaManager.getArena(arena.getName()).setInUse(false);
         }
+
+        Location tpbackLoc = WynautRankUp.instance.generalConfig.tpBackLocation;
+
+        if (tpbackLoc != null) {
+            if (getPlayer1().getOptionalServerPlayer().isPresent()) {
+                tpbackLoc.teleport(getPlayer1().getOptionalServerPlayer().get());
+            }
+            if (getPlayer2().getOptionalServerPlayer().isPresent()) {
+                tpbackLoc.teleport(getPlayer2().getOptionalServerPlayer().get());
+            }
+        }
+
     }
 }

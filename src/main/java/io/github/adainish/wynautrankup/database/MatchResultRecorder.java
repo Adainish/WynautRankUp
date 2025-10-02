@@ -7,27 +7,15 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.UUID;
 
-public class MatchResultRecorder
-{
+public class MatchResultRecorder {
+
     public void recordMatch(UUID winnerId, UUID loserId, int winnerEloChange, int loserEloChange) {
-        //make sure table exists, if not create it
-        try (Connection connection = WynautRankUp.instance.databaseManager.getConnection()) {
-            String createTableSQL = """
-                    CREATE TABLE IF NOT EXISTS wynaut_rank_up_match_results (
-                        id SERIAL PRIMARY KEY,
-                        winner_id UUID NOT NULL,
-                        loser_id UUID NOT NULL,
-                        winner_elo_change INT NOT NULL,
-                        loser_elo_change INT NOT NULL
-                    );
+        String insertMatchSQL = """
+                    INSERT INTO wynaut_rank_up_match_results (winner_id, loser_id, winner_elo_change, loser_elo_change)
+                    VALUES (?, ?, ?, ?);
                 """;
-            PreparedStatement createTableStatement = connection.prepareStatement(createTableSQL);
-            createTableStatement.executeUpdate();
-            String insertMatchSQL = """
-                INSERT INTO wynaut_rank_up_match_results (winner_id, loser_id, winner_elo_change, loser_elo_change)
-                VALUES (?, ?, ?, ?);
-            """;
-            PreparedStatement statement = connection.prepareStatement(insertMatchSQL);
+        try (Connection connection = WynautRankUp.instance.databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(insertMatchSQL)) {
             statement.setString(1, winnerId.toString());
             statement.setString(2, loserId.toString());
             statement.setInt(3, winnerEloChange);
@@ -37,4 +25,29 @@ public class MatchResultRecorder
             e.printStackTrace();
         }
     }
+
+
+    public int countRecentMatches(UUID player1, UUID player2, int days) {
+        String sql = """
+                    SELECT COUNT(*) FROM wynaut_rank_up_match_results
+                    WHERE ((winner_id = ? AND loser_id = ?) OR (winner_id = ? AND loser_id = ?))
+                    AND created_at >= NOW() - INTERVAL '%d days'
+                """.formatted(days);
+        try (Connection connection = WynautRankUp.instance.databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, player1.toString());
+            statement.setString(2, player2.toString());
+            statement.setString(3, player2.toString());
+            statement.setString(4, player1.toString());
+            var rs = statement.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+
 }

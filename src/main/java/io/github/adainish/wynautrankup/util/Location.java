@@ -257,7 +257,7 @@ public class Location
             }
 
             ServerLevel world = this.getServerWorld();
-            player.teleportTo(world, this.x, this.y, this.z, player.getXRot(), player.getYHeadRot());
+            player.teleportTo(world, this.x, this.y, this.z, this.pitch, this.yaw);
             player.sendSystemMessage(Component.literal("Teleported you to your destination!").withStyle(ChatFormatting.GREEN));
         }
     }
