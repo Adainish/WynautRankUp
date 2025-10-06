@@ -30,31 +30,27 @@ public class TeamValidator {
     public boolean isTeamLegal(List<Pokemon> team) {
         boolean isLegal = true;
         if (team == null || team.size() != 6 || config == null) {
-            if (config == null)
-            {
+            if (config == null) {
                 System.out.println("[DEBUG] Config is null.");
             }
-            if (team == null)
-            {
+            if (team == null) {
                 System.out.println("[DEBUG] Team is null.");
             }
             System.out.println("[DEBUG] Team is null, not 6 Pokémon, or config is missing.");
             isLegal = false;
             return isLegal;
         }
-        for (Pokemon p : team) {
-            for (BannedPokemonRule rule : config.bannedPokemon) {
+        for (Pokemon p : team)
+            for (BannedPokemonRule rule : config.bannedPokemon)
                 if (matchesRule(p, rule)) {
                     System.out.println("[DEBUG] Illegal Pokémon found: " + p.getSpecies().getName() +
                             " (Form: " + p.getForm().getName() +
                             ", Ability: " + p.getAbility().getName() +
                             ", Held Item: " + (p.getHeldItem$common().isEmpty() ? "None" : BuiltInRegistries.ITEM.getKey(p.getHeldItem$common().getItem())) +
-                            ", Moves: " + p.getMoveSet().getMoves().stream().map(m -> m.getName()).toList() +
+                            ", Moves: " + p.getMoveSet().getMoves().stream().map(Move::getName).toList() +
                             ") matches rule: " + rule);
                     isLegal = false;
                 }
-            }
-        }
         return isLegal;
     }
 
@@ -97,46 +93,52 @@ public class TeamValidator {
             }
         }
         if (!rule.moves.isEmpty()) {
-            for (String move : rule.moves) {
+            rule.moves.forEach(move -> {
                 boolean found = p.getMoveSet().getMoves().stream().anyMatch(m -> m.getName().equalsIgnoreCase(move));
                 if (found) {
                     reasons.add(name + " knows banned move: " + move);
                 }
-            }
+            });
         }
         return reasons;
     }
 
 
     private boolean matchesRule(Pokemon p, BannedPokemonRule rule) {
-        if (rule.species != null && p.getSpecies().getName().equalsIgnoreCase(rule.species)) {
-            return true;
+        if (rule.species != null && !rule.species.isEmpty()) {
+            if (!p.getSpecies().getName().equalsIgnoreCase(rule.species)) {
+                return false;
+            }
         }
-        if (rule.form != null && p.getForm().getName().equalsIgnoreCase(rule.form)) {
-            return true;
+        if (rule.form != null && !rule.form.isEmpty()) {
+            if (!p.getForm().getName().equalsIgnoreCase(rule.form)) {
+                return false;
+            }
         }
-        if (rule.ability != null && p.getAbility().getName().equalsIgnoreCase(rule.ability)) {
-            return true;
+        if (rule.ability != null && !rule.ability.isEmpty()) {
+            if (!p.getAbility().getName().equalsIgnoreCase(rule.ability)) {
+                return false;
+            }
         }
-        if (rule.heldItem != null) {
+        if (rule.heldItem != null && !rule.heldItem.isEmpty()) {
             ItemStack held = p.getHeldItem$common();
             String resourceId = BuiltInRegistries.ITEM.getKey(held.getItem()).toString();
-            if (resourceId.equalsIgnoreCase(rule.heldItem)) {
-                return true;
+            if (!resourceId.equalsIgnoreCase(rule.heldItem)) {
+                return false;
             }
         }
-        if (!rule.moves.isEmpty()) {
-            for (String move : rule.moves) {
-                boolean found = p.getMoveSet().getMoves().stream().anyMatch(m -> m.getName().equalsIgnoreCase(move));
-                if (found) {
-                    return true;
-                }
-            }
+        if (rule.moves != null && !rule.moves.isEmpty()) {
+            List<String> pokemonMoves = p.getMoveSet().getMoves().stream()
+                    .map(Move::getName)
+                    .map(String::toLowerCase)
+                    .toList();
+            List<String> ruleMoves = rule.moves.stream()
+                    .map(String::toLowerCase)
+                    .toList();
+            return new HashSet<>(pokemonMoves).containsAll(ruleMoves);
         }
-        return false;
+        return true;
     }
-
-
 
     public boolean doTeamsMatch(Player player, List<Pokemon> team2) {
         List<Pokemon> team1 = player.getCurrentPartyTeam();
@@ -223,9 +225,7 @@ public class TeamValidator {
                     cleanItem = cleanItem.substring(0, 1).toUpperCase() + cleanItem.substring(1);
                 }
                 lore.append("§e• Held Item: §f").append(cleanItem).append(" §7(Required for a ban)\n");
-            }
-
-            else
+            } else
                 lore.append("§7• Held Item: None\n");
 
             if (rule.moves != null && !rule.moves.isEmpty()) {

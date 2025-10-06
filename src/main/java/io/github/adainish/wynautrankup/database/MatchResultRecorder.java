@@ -29,16 +29,17 @@ public class MatchResultRecorder {
 
     public int countRecentMatches(UUID player1, UUID player2, int days) {
         String sql = """
-                    SELECT COUNT(*) FROM wynaut_rank_up_match_results
-                    WHERE ((winner_id = ? AND loser_id = ?) OR (winner_id = ? AND loser_id = ?))
-                    AND created_at >= NOW() - INTERVAL '%d days'
-                """.formatted(days);
+                SELECT COUNT(*) FROM wynaut_rank_up_match_results
+                WHERE ((winner_id = ? AND loser_id = ?) OR (winner_id = ? AND loser_id = ?))
+                AND created_at >= NOW() - INTERVAL ? DAY
+            """;
         try (Connection connection = WynautRankUp.instance.databaseManager.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, player1.toString());
             statement.setString(2, player2.toString());
             statement.setString(3, player2.toString());
             statement.setString(4, player1.toString());
+            statement.setInt(5, days);
             var rs = statement.executeQuery();
             if (rs.next()) {
                 return rs.getInt(1);
@@ -48,6 +49,4 @@ public class MatchResultRecorder {
         }
         return 0;
     }
-
-
 }

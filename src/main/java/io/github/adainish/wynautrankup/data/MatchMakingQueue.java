@@ -5,8 +5,8 @@ import com.cobblemon.mod.common.pokemon.Pokemon;
 import io.github.adainish.wynautrankup.WynautRankUp;
 import io.github.adainish.wynautrankup.arenas.Arena;
 import io.github.adainish.wynautrankup.database.MatchResultRecorder;
-import io.github.adainish.wynautrankup.database.PlayerDataManager;
 import io.github.adainish.wynautrankup.tracker.RankedBattleTracker;
+import io.github.adainish.wynautrankup.util.BattleUtil;
 import io.github.adainish.wynautrankup.util.PermissionUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -135,7 +135,6 @@ public class MatchMakingQueue
         boolean team2Legal = WynautRankUp.instance.teamValidator.isTeamLegal(team2);
         //verify if the copied teams still match up with the players current teams
         if (!WynautRankUp.instance.teamValidator.doTeamsMatch(entry1.getPlayer(), team1)) {
-            team1Legal = false;
             PermissionUtil.getOptionalServerPlayer(entry1.getPlayer().getId()).ifPresent(player -> {
                 player.sendSystemMessage(Component.literal("Your team has changed since you entered the queue. Please rejoin the queue with your new team.").withStyle(s -> s.withColor(0xFF5555)));
                 WynautRankUp.instance.teamValidator.getTeamMismatchReasons(entry1.getPlayer(), team1).forEach(reason -> {
@@ -182,11 +181,6 @@ public class MatchMakingQueue
             return;
         }
 
-        // start battle with cobblemon
-        UUID battleId = match.startMatch();
-        rankedBattleTracker.markAsRanked(battleId, match);
-        System.out.println("Starting ranked match between " + match.getPlayer1().getId());
-        System.out.println(" and " + match.getPlayer2().getId() + " with battle ID " + battleId);
         // Notify players and tell them the match is starting and who they are facing
         //TODO: send more detailed info about the opponent (ELO, recent win/loss record, etc)
         //TODO: Teleport players to a waiting area or prepare them for battle
@@ -199,6 +193,12 @@ public class MatchMakingQueue
             player1.setInvulnerable(true);
         if (!player2.isInvulnerable())
             player2.setInvulnerable(true);
+
+        //retrieve any pokemon sent out from the party and return them to the party
+        Optional<List<Pokemon>> player1PartyPokemon = BattleUtil.getOptionalActivePartyPokemon(player1.getUUID());
+        player1PartyPokemon.ifPresent(pokemons -> pokemons.forEach(Pokemon::recall));
+        Optional<List<Pokemon>> player2PartyPokemon = BattleUtil.getOptionalActivePartyPokemon(player2.getUUID());
+        player2PartyPokemon.ifPresent(pokemons -> pokemons.forEach(Pokemon::recall));
 
         //teleport players to arena
         arena.teleportPlayersToArena(player1, player2);
@@ -214,6 +214,14 @@ public class MatchMakingQueue
             player.sendSystemMessage(Component.literal("Your opponent is " + match.getPlayer1().getOptionalServerPlayer().get().getName().plainCopy().getString()).withStyle(s -> s.withColor(0x55FF55)));
             player.sendSystemMessage(Component.literal("Your opponent has an ELO of " + match.getPlayer1().getElo()).withStyle(s -> s.withColor(0x55FF55)));
         });
+
+
+        // start battle with cobblemon
+        UUID battleId = match.startMatch();
+        rankedBattleTracker.markAsRanked(battleId, match);
+        System.out.println("Starting ranked match between " + match.getPlayer1().getId());
+        System.out.println(" and " + match.getPlayer2().getId() + " with battle ID " + battleId);
+
         queue.remove(entry1.getPlayer().getId());
         queue.remove(entry2.getPlayer().getId());
     }
