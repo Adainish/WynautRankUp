@@ -60,7 +60,7 @@ public class ShopCommand
                                             String id = StringArgumentType.getString(ctx, "id");
                                             int price = IntegerArgumentType.getInteger(ctx, "price");
                                             ItemStack item = player.getMainHandItem();
-                                            ShopItem shopItem = new ShopItem(id, item.getHoverName().getString(), price, item.copy());
+                                            ShopItem shopItem = new ShopItem(id, item.getDisplayName().getString(), price, item.copy());
                                             WynautRankUp.instance.shopManager.addItem(shopItem);
                                             WynautRankUp.instance.shopManager.saveToConfig();
                                             ctx.getSource().sendSuccess(() -> Component.literal("Added shop item: " + id), false);

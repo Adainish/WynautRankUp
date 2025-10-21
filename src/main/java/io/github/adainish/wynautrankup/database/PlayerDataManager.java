@@ -1,6 +1,5 @@
 package io.github.adainish.wynautrankup.database;
 
-import com.google.common.base.Joiner;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.adainish.wynautrankup.WynautRankUp;
 import io.github.adainish.wynautrankup.data.PlayerDataStorage;
@@ -13,9 +12,7 @@ import io.github.adainish.wynautrankup.util.PermissionUtil;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 public class PlayerDataManager {
@@ -39,8 +36,8 @@ public class PlayerDataManager {
                                 PRIMARY KEY (player_id, season_id)
                             );
                         """;
-                PreparedStatement statement = connection.prepareStatement(createTableSQL);
-                statement.executeUpdate();
+                connection.prepareStatement(createTableSQL).executeUpdate();
+
                 String createResultsTableSQL = """
                     CREATE TABLE IF NOT EXISTS wynaut_rank_up_match_results (
                         id SERIAL PRIMARY KEY,
@@ -51,24 +48,39 @@ public class PlayerDataManager {
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     );
                 """;
-                PreparedStatement resultsStatement = connection.prepareStatement(createResultsTableSQL);
-                resultsStatement.executeUpdate();
+                connection.prepareStatement(createResultsTableSQL).executeUpdate();
+
+                // Pending rewards with idempotency (unique composite key)
                 String createPendingRewardsTable = """
                             CREATE TABLE IF NOT EXISTS pending_rewards (
-                                player_id TEXT,
-                                season_id TEXT,
-                                reward_type TEXT,
-                                reward_data TEXT
+                                player_id VARCHAR(36) NOT NULL,
+                                season_id VARCHAR(64) NOT NULL,
+                                reward_type VARCHAR(32) NOT NULL,
+                                reward_data TEXT NOT NULL,
+                                UNIQUE KEY uq_pending (player_id, season_id, reward_type, reward_data)
                             );
                         """;
-                PreparedStatement pendingRewardsStatement = connection.prepareStatement(createPendingRewardsTable);
-                pendingRewardsStatement.executeUpdate();
+                connection.prepareStatement(createPendingRewardsTable).executeUpdate();
+                // Best-effort backfill for older installs without the constraint
+                try {
+                    connection.prepareStatement(
+                            "ALTER TABLE pending_rewards ADD UNIQUE KEY uq_pending (player_id, season_id, reward_type, reward_data)"
+                    ).executeUpdate();
+                } catch (SQLException ignored) { }
+
+                // Season awards log to guard re-awards per season
+                String createSeasonAwardsLog = """
+                            CREATE TABLE IF NOT EXISTS season_awards_log (
+                                season_id VARCHAR(64) PRIMARY KEY,
+                                awarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            );
+                        """;
+                connection.prepareStatement(createSeasonAwardsLog).executeUpdate();
 
                 String createBalancesTable = "CREATE TABLE IF NOT EXISTS player_balances (" +
                         "uuid VARCHAR(36) PRIMARY KEY," +
                         "balance INTEGER NOT NULL DEFAULT 0)";
-                PreparedStatement balanceStatement = connection.prepareStatement(createBalancesTable);
-                balanceStatement.executeUpdate();
+                connection.prepareStatement(createBalancesTable).executeUpdate();
 
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -136,7 +148,6 @@ public class PlayerDataManager {
         }, asyncExecutor.getExecutorService());
     }
 
-    // Set elo for a specific season
     public void setElo(UUID playerId, int elo) {
         String seasonId = WynautRankUp.instance.seasonManager.getCurrentSeasonId();
 
@@ -177,9 +188,7 @@ public class PlayerDataManager {
         }, asyncExecutor.getExecutorService());
     }
 
-    // Set elo for a specific season
     public void setElo(UUID playerId, String seasonId, int elo) {
-
         asyncExecutor.submitTask(() -> {
             try (Connection connection = WynautRankUp.instance.databaseManager.getConnection()) {
                 String insertOrUpdateSQL = """
@@ -198,7 +207,6 @@ public class PlayerDataManager {
         });
     }
 
-    // Returns a list of player IDs and their ELOs for a season, sorted by ELO descending
     public CompletableFuture<List<PlayerEloEntry>> getLeaderboardForSeason(String seasonId, int limit) {
         return CompletableFuture.supplyAsync(() -> {
             List<PlayerEloEntry> leaderboard = new ArrayList<>();
@@ -218,7 +226,6 @@ public class PlayerDataManager {
         }, asyncExecutor.getExecutorService());
     }
 
-    // Returns the rank (1-based) of a player in a season, or -1 if not found
     public CompletableFuture<Integer> getPlayerRankInSeason(UUID playerId, String seasonId) {
         return CompletableFuture.supplyAsync(() -> {
             try (Connection connection = WynautRankUp.instance.databaseManager.getConnection()) {
@@ -257,87 +264,118 @@ public class PlayerDataManager {
         }, asyncExecutor.getExecutorService());
     }
 
-    // Helper record for leaderboard entries
-    public record PlayerEloEntry(String playerId, int elo) {
-    }
+    public record PlayerEloEntry(String playerId, int elo) { }
 
+    public void saveAllPlayerData() { }
 
-    public void saveAllPlayerData() {
-//        asyncExecutor.submitTask(() -> {
-//            playerDataStorage.getAllPlayers().forEach(player -> {
-//                setElo(player.getId(), player.getElo());
-//            });
-//        });
-    }
-
-    // Only one loop per player, and reward distribution is grouped.
-    // Optimized reward evaluation and distribution
-    public void evaluateAndDistributeRewards(Season season) {
-        asyncExecutor.submitTask(() -> {
+    // Unified evaluation: enqueue to pending_rewards for ALL players; idempotent and transactional.
+    public CompletableFuture<Void> evaluateAndDistributeRewards(Season season) {
+        return CompletableFuture.supplyAsync(() -> {
             try (Connection connection = WynautRankUp.instance.databaseManager.getConnection()) {
-                String query = "SELECT player_id, elo FROM wynaut_rank_up_player_data WHERE season_id = ?";
-                PreparedStatement statement = connection.prepareStatement(query);
-                statement.setString(1, season.getName());
-                ResultSet resultSet = statement.executeQuery();
+                connection.setAutoCommit(false);
 
-                String insertSQL = "INSERT INTO pending_rewards (player_id, season_id, reward_type, reward_data) VALUES (?, ?, ?, ?)";
-                PreparedStatement insertReward = connection.prepareStatement(insertSQL);
+                // Idempotency guard per season
+                String upsertSeasonAward = """
+                    INSERT INTO season_awards_log (season_id) VALUES (?)
+                    ON DUPLICATE KEY UPDATE season_id = season_id
+                """;
+                PreparedStatement seasonGuard = connection.prepareStatement(upsertSeasonAward);
+                seasonGuard.setString(1, season.getName());
+                int affected = seasonGuard.executeUpdate();
+                // MySQL semantics: 1 = inserted (proceed), 2 = duplicate (already awarded)
+                if (affected > 1) {
+                    connection.rollback();
+                    return null;
+                }
 
-                while (resultSet.next()) {
-                    UUID playerId = UUID.fromString(resultSet.getString("player_id"));
-                    int elo = resultSet.getInt("elo");
+                String queryPlayers = "SELECT player_id, elo FROM wynaut_rank_up_player_data WHERE season_id = ?";
+                PreparedStatement ps = connection.prepareStatement(queryPlayers);
+                ps.setString(1, season.getName());
+                ResultSet rs = ps.executeQuery();
 
-                    if (PermissionUtil.getOptionalServerPlayer(playerId).isEmpty()) {
-                        for (RewardCriteria criteria : season.getRewardCriteria()) {
-                            if (criteria.isMetBy(playerId, elo)) {
-                                for (String item : criteria.getItems()) {
-                                    insertReward.setString(1, playerId.toString());
-                                    insertReward.setString(2, season.getName());
-                                    insertReward.setString(3, "item");
-                                    insertReward.setString(4, item);
-                                    insertReward.addBatch();
-                                }
-                                for (String command : criteria.getCommands()) {
-                                    insertReward.setString(1, playerId.toString());
-                                    insertReward.setString(2, season.getName());
-                                    insertReward.setString(3, "command");
-                                    insertReward.setString(4, command);
-                                    insertReward.addBatch();
-                                }
+                String insertReward = """
+                    INSERT INTO pending_rewards (player_id, season_id, reward_type, reward_data)
+                    VALUES (?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE reward_data = VALUES(reward_data)
+                """;
+                PreparedStatement insert = connection.prepareStatement(insertReward);
+
+                while (rs.next()) {
+                    UUID playerId = UUID.fromString(rs.getString("player_id"));
+                    int elo = rs.getInt("elo");
+
+                    for (RewardCriteria criteria : season.getRewardCriteria()) {
+                        if (criteria.isMetBy(playerId, elo)) {
+                            for (String item : criteria.getItems()) {
+                                insert.setString(1, playerId.toString());
+                                insert.setString(2, season.getName());
+                                insert.setString(3, "item");
+                                insert.setString(4, item);
+                                insert.addBatch();
                             }
-                        }
-                    } else {
-                        ServerPlayer player = PermissionUtil.getOptionalServerPlayer(playerId).get();
-                        String userName = player.getGameProfile().getName();
-                        if (season.getRewardCriteria().stream().allMatch(c -> c.isMetBy(playerId, elo))) {
-                            System.out.println("Player " + playerId + " qualifies for rewards in season " + season.getName());
-                            season.getRewardCriteria().forEach(criteria -> {
-                                criteria.getCommands().forEach(command -> {
-                                    System.out.println("Executing command for player " + playerId + ": " + command);
-                                    messenger.notifyReward(playerId, userName, command);
-                                    try {
-                                        messenger.executeCommand(player, command);
-                                    } catch (CommandSyntaxException e) {
-                                        e.printStackTrace();
-                                    }
-
-                                });
-                                criteria.getItems().forEach(item -> {
-                                    System.out.println("Giving item to player " + playerId + ": " + item);
-                                    messenger.notifyReward(playerId, userName, item);
-                                    messenger.giveItem(player, item);
-                                });
-                            });
+                            for (String command : criteria.getCommands()) {
+                                insert.setString(1, playerId.toString());
+                                insert.setString(2, season.getName());
+                                insert.setString(3, "command");
+                                insert.setString(4, command);
+                                insert.addBatch();
+                            }
                         }
                     }
                 }
-                insertReward.executeBatch();
+
+                insert.executeBatch();
+                connection.commit();
             } catch (SQLException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
-        });
+            return null;
+        }, asyncExecutor.getExecutorService());
     }
 
+    // Dispatcher: deliver pending rewards to online players only, then remove them.
+    public CompletableFuture<Integer> dispatchPendingRewardsToOnlinePlayers() {
+        return CompletableFuture.supplyAsync(() -> {
+            int delivered = 0;
+            try (Connection connection = WynautRankUp.instance.databaseManager.getConnection()) {
+                String distinctPlayers = "SELECT DISTINCT player_id FROM pending_rewards";
+                PreparedStatement ps = connection.prepareStatement(distinctPlayers);
+                ResultSet rs = ps.executeQuery();
+                List<UUID> candidates = new ArrayList<>();
+                while (rs.next()) {
+                    try {
+                        candidates.add(UUID.fromString(rs.getString("player_id")));
+                    } catch (IllegalArgumentException ignored) { }
+                }
+
+                for (UUID pid : candidates) {
+                    Optional<ServerPlayer> opt = PermissionUtil.getOptionalServerPlayer(pid);
+                    if (opt.isPresent()) {
+                        ServerPlayer player = opt.get();
+                        String userName = player.getGameProfile().getName();
+                        List<PendingReward> rewards = getAndRemovePendingRewards(pid);
+                        messenger.notify(player, "The season has ended! You have received " + rewards.size() + " rewards, " + userName + "!");
+                        for (PendingReward pr : rewards) {
+                            if ("item".equals(pr.type())) {
+                                messenger.giveItem(player, pr.data());
+                                delivered++;
+                            } else if ("command".equals(pr.type())) {
+                                try {
+                                    messenger.executeCommandWithNoNotify(player, pr.data());
+                                } catch (CommandSyntaxException e) {
+                                    e.printStackTrace();
+                                }
+                                delivered++;
+                            }
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+            return delivered;
+        }, asyncExecutor.getExecutorService());
+    }
 
     public List<PendingReward> getAndRemovePendingRewards(UUID playerId) {
         List<PendingReward> rewards = new ArrayList<>();
@@ -361,14 +399,13 @@ public class PlayerDataManager {
         return rewards;
     }
 
-    // Helper class
     public record PendingReward(String type, String data) {
         public void sendToPlayer(ServerPlayer player) {
             if (type.equals("item")) {
                 messenger.giveItem(player, data);
             } else if (type.equals("command")) {
                 try {
-                    messenger.executeCommand(player, data);
+                    messenger.executeCommandWithNoNotify(player, data);
                 } catch (CommandSyntaxException e) {
                     e.printStackTrace();
                 }
@@ -404,10 +441,8 @@ public class PlayerDataManager {
         }
     }
 
-
     public void adjustBalance(String uuid, int delta) {
         int current = getBalance(uuid);
         setBalance(uuid, current + delta);
     }
-
 }

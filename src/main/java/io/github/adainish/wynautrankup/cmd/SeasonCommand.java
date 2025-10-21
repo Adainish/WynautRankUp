@@ -1,6 +1,7 @@
 package io.github.adainish.wynautrankup.cmd;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.adainish.wynautrankup.WynautRankUp;
 import io.github.adainish.wynautrankup.season.RewardCriteria;
@@ -136,18 +137,15 @@ public class SeasonCommand {
                                                 newSeason.setName(name);
                                                 newSeason.setDisplayName(displayName);
                                                 newSeason.setDescription("A new season.");
-                                                //current date + 4 months for configurability later
-                                                LocalDate rewardDate = LocalDate.now().plusMonths(4);
+                                                java.time.LocalDate rewardDate = java.time.LocalDate.now().plusMonths(4);
                                                 String rewardDateString = String.format("%02d/%02d/%04d", rewardDate.getDayOfMonth(), rewardDate.getMonthValue(), rewardDate.getYear());
                                                 newSeason.setRewardDate(rewardDateString);
 
-                                                // example reward criteria
                                                 RewardCriteria rewardCriteria = new RewardCriteria();
                                                 rewardCriteria.setType("item");
                                                 rewardCriteria.getCommands().add("give {player} minecraft:diamond 1");
                                                 rewardCriteria.getItems().add("minecraft:emerald");
-                                                //start date is now, end date is reward date
-                                                LocalDate now = LocalDate.now().plusMonths(3);
+                                                java.time.LocalDate now = java.time.LocalDate.now().plusMonths(3);
                                                 String nowString = String.format("%02d/%02d/%04d", now.getDayOfMonth(), now.getMonthValue(), now.getYear());
                                                 rewardCriteria.setStartDate(nowString);
                                                 rewardCriteria.setEndDate(rewardDateString);
@@ -168,12 +166,41 @@ public class SeasonCommand {
                                             {
                                                 e.printStackTrace();
                                             }
-
                                             return 1;
                                         })
                                 )
                         )
                 )
-                ;
+                .then(Commands.literal("forceend")
+                        .requires(source -> {
+                            if (source.isPlayer()) {
+                                try {
+                                    return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), ADMIN_PERMISSION_NODE);
+                                } catch (CommandSyntaxException e) {
+                                    source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
+                                }
+                            } else {
+                                return true;
+                            }
+                            return true;
+                        })
+                        .executes(ctx -> {
+                            String currentId = WynautRankUp.instance.seasonManager.getCurrentSeasonId();
+                            if ("default".equalsIgnoreCase(currentId)) {
+                                ctx.getSource().sendMessage(Component.literal("No active season to force-end."));
+                                return 0;
+                            }
+                            ctx.getSource().sendMessage(Component.literal("Force-ending season. Processing rewards..."));
+                            WynautRankUp.instance.seasonManager.forceEndCurrentSeasonAndReward()
+                                    .whenComplete((v, t) -> {
+                                        if (t != null) {
+                                            ctx.getSource().sendSystemMessage(Component.literal("Failed to force-end season: " + t.getMessage()).withStyle(ChatFormatting.RED));
+                                        } else {
+                                            ctx.getSource().sendSystemMessage(Component.literal("Season force-ended. Rewards queued and dispatched to online players."));
+                                        }
+                                    });
+                            return 1;
+                        })
+                );
     }
 }

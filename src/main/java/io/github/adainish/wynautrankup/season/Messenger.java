@@ -25,6 +25,13 @@ public class Messenger
     public void notifyReward(UUID uuid, String playerName, String rewardDetails) {
         // Send message to player
         PermissionUtil.getOptionalServerPlayer(uuid).ifPresent(player -> {
+            if (rewardDetails.isEmpty()) {
+                player.sendSystemMessage(
+                    Component.literal("[WynautRankUp] Congratulations " + playerName + "! You have earned a new reward!")
+                        .withStyle(ChatFormatting.GOLD)
+                );
+                return;
+            }
             player.sendSystemMessage(
                 Component.literal("[WynautRankUp] Congratulations " + playerName + "! You have earned a new reward: " + rewardDetails)
                     .withStyle(ChatFormatting.GOLD)
@@ -34,11 +41,10 @@ public class Messenger
 
     public void giveItem(ServerPlayer player, ItemStack stack) {
         stack = stack.copy();
-        notifyReward(player.getUUID(), player.getDisplayName().getString(), stack.getHoverName().getString());
         //give item to player
         if (player.getInventory().add(stack))
         {
-            notify(player, "You have received: " + stack.getDisplayName().getString());
+            notify(player, "Your item has been added to your inventory");
         } else {
             notify(player, "Your inventory is full, dropping item: " + stack.getDisplayName().getString());
             player.drop(stack, false);
@@ -46,7 +52,6 @@ public class Messenger
     }
 
     public void giveItem(ServerPlayer player, String data) {
-        notifyReward(player.getUUID(), player.getDisplayName().getString(), data);
         //convert data to item and give to player
         //get item from builtin minecraft item registry
 
@@ -54,9 +59,9 @@ public class Messenger
         ItemStack stack = new ItemStack(item, 1);
         if (player.getInventory().add(stack))
         {
-            notify(player, "You have received: " + stack.getHoverName().getString());
+            notify(player, "Your item has been added to your inventory");
         } else {
-            notify(player, "Your inventory is full, dropping item: " + stack.getHoverName().getString());
+            notify(player, "Your inventory is full, dropping item: " + stack.getDisplayName().getString());
             player.drop(stack, false);
         }
     }
@@ -75,7 +80,7 @@ public class Messenger
     }
 
     public void executeCommand(ServerPlayer player, String data) throws CommandSyntaxException {
-        notifyReward(player.getUUID(), player.getDisplayName().getString(), data);
+        notifyReward(player.getUUID(), player.getDisplayName().getString(), "");
         //execute command from server console, replacing {player} with the player's name
         String command = data.replace("{player}", player.getDisplayName().getString());
         WynautRankUp.instance.server.getCommands().getDispatcher().execute(command, WynautRankUp.instance.server.createCommandSourceStack());

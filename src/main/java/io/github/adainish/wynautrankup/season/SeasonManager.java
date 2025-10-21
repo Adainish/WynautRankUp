@@ -2,14 +2,19 @@ package io.github.adainish.wynautrankup.season;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import io.github.adainish.wynautrankup.WynautRankUp;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class SeasonManager
 {
@@ -34,31 +39,26 @@ public class SeasonManager
         }
     }
 
-
-
+    // Fixed to parse dd/MM/yyyy and compute remaining time until that day ends.
     public String getTimeUntilSeasonEnds() {
         if (currentSeason == null || currentSeason.getRewardDate() == null) return "No active season";
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime end;
         try {
-            end = LocalDateTime.parse(currentSeason.getRewardDate());
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            LocalDate rewardDay = LocalDate.parse(currentSeason.getRewardDate(), formatter);
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime end = rewardDay.atTime(LocalTime.of(23, 59, 59));
+            if (now.isAfter(end)) return "Season ended";
+
+            Duration duration = Duration.between(now, end);
+            long days = duration.toDays();
+            long hours = duration.minusDays(days).toHours();
+            long minutes = duration.minusDays(days).minusHours(hours).toMinutes();
+            long seconds = duration.minusDays(days).minusHours(hours).minusMinutes(minutes).getSeconds();
+            return String.format("%d days %d hours %d minutes %d seconds", days, hours, minutes, seconds);
         } catch (Exception e) {
             return "Invalid season end date format";
         }
-
-        if (now.isAfter(end)) return "Season ended";
-
-        Duration duration = Duration.between(now, end);
-
-        long days = duration.toDays();
-        long hours = duration.minusDays(days).toHours();
-        long minutes = duration.minusDays(days).minusHours(hours).toMinutes();
-        long seconds = duration.minusDays(days).minusHours(hours).minusMinutes(minutes).getSeconds();
-
-        return String.format("%d days %d hours %d minutes %d seconds", days, hours, minutes, seconds);
     }
-
-
 
     public void setCurrentSeasonByActiveDate()
     {
@@ -66,9 +66,7 @@ public class SeasonManager
             currentSeason = null;
             return;
         }
-        // compare dates to find the active season
         seasons.sort((s1, s2) -> s2.getRewardDate().compareTo(s1.getRewardDate()));
-        // pick the season with the most "Up to date" date
         currentSeason = seasons.getFirst();
     }
 
@@ -78,6 +76,23 @@ public class SeasonManager
         } else {
             throw new IllegalArgumentException("Season is null or not loaded.");
         }
+    }
+
+    // Now returns CompletableFuture, awaits DB evaluation and dispatch, then clears the season.
+    public CompletableFuture<Void> forceEndCurrentSeasonAndReward() {
+        if (currentSeason == null) {
+            System.out.println("[SeasonManager] No active season to force-end.");
+            return CompletableFuture.completedFuture(null);
+        }
+
+        Season seasonToEnd = currentSeason;
+        return WynautRankUp.instance.playerDataManager
+                .evaluateAndDistributeRewards(seasonToEnd)
+                .thenCompose(v -> WynautRankUp.instance.playerDataManager.dispatchPendingRewardsToOnlinePlayers())
+                .thenAccept(delivered -> {
+                    System.out.println("[SeasonManager] Force-ended season '" + seasonToEnd.getName() + "'. Delivered " + delivered + " reward actions to online players.");
+                })
+                .whenComplete((v, t) -> currentSeason = null);
     }
 
     public void reloadSeasons() {
@@ -107,7 +122,6 @@ public class SeasonManager
     public void addSeason(Season newSeason) {
         if (isValidSeason(newSeason) && getSeasonById(newSeason.getName()) == null) {
             seasons.add(newSeason);
-            //save to file
             File file = new File(configDir, newSeason.getName() + ".json");
             try (java.io.FileWriter writer = new FileWriter(file)) {
                 new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(newSeason, writer);

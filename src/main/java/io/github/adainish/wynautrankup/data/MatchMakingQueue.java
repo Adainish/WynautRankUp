@@ -182,9 +182,6 @@ public class MatchMakingQueue
         }
 
         // Notify players and tell them the match is starting and who they are facing
-        //TODO: send more detailed info about the opponent (ELO, recent win/loss record, etc)
-        //TODO: Teleport players to a waiting area or prepare them for battle
-        //TODO: Teleport players to the assigned battle arena when the battle starts
         ServerPlayer player1 = match.getPlayer1().getOptionalServerPlayer().get();
         ServerPlayer player2 = match.getPlayer2().getOptionalServerPlayer().get();
 
@@ -201,29 +198,26 @@ public class MatchMakingQueue
         player2PartyPokemon.ifPresent(pokemons -> pokemons.forEach(Pokemon::recall));
 
         //teleport players to arena
-        arena.teleportPlayersToArena(player1, player2);
+        arena.teleportPlayersToArenaAsync(player1, player2).thenRun(() -> {
+            PermissionUtil.getOptionalServerPlayer(match.getPlayer1().getId()).ifPresent(player -> {
+                player.sendSystemMessage(Component.literal("You have been matched with an opponent! Starting ranked battle...").withStyle(s -> s.withColor(0x55FF55)));
+                player.sendSystemMessage(Component.literal("Your opponent is " + match.getPlayer2().getOptionalServerPlayer().get().getName().plainCopy().getString()).withStyle(s -> s.withColor(0x55FF55)));
+                player.sendSystemMessage(Component.literal("Your opponent has an ELO of " + match.getPlayer2().getElo()).withStyle(s -> s.withColor(0x55FF55)));
+            });
+            PermissionUtil.getOptionalServerPlayer(match.getPlayer2().getId()).ifPresent(player -> {
+                player.sendSystemMessage(Component.literal("You have been matched with an opponent! Starting ranked battle...").withStyle(s -> s.withColor(0x55FF55)));
+                player.sendSystemMessage(Component.literal("Your opponent is " + match.getPlayer1().getOptionalServerPlayer().get().getName().plainCopy().getString()).withStyle(s -> s.withColor(0x55FF55)));
+                player.sendSystemMessage(Component.literal("Your opponent has an ELO of " + match.getPlayer1().getElo()).withStyle(s -> s.withColor(0x55FF55)));
+            });
 
-        PermissionUtil.getOptionalServerPlayer(match.getPlayer1().getId()).ifPresent(player -> {
-            player.sendSystemMessage(Component.literal("You have been matched with an opponent! Starting ranked battle...").withStyle(s -> s.withColor(0x55FF55)));
-            player.sendSystemMessage(Component.literal("Your opponent is " + match.getPlayer2().getOptionalServerPlayer().get().getName().plainCopy().getString()).withStyle(s -> s.withColor(0x55FF55)));
-            player.sendSystemMessage(Component.literal("Your opponent has an ELO of " + match.getPlayer2().getElo()).withStyle(s -> s.withColor(0x55FF55)));
+            UUID battleId = match.startMatch();
+            rankedBattleTracker.markAsRanked(battleId, match);
+            System.out.println("Starting ranked match between " + match.getPlayer1().getId());
+            System.out.println(" and " + match.getPlayer2().getId() + " with battle ID " + battleId);
 
+            queue.remove(entry1.getPlayer().getId());
+            queue.remove(entry2.getPlayer().getId());
         });
-        PermissionUtil.getOptionalServerPlayer(match.getPlayer2().getId()).ifPresent(player -> {
-            player.sendSystemMessage(Component.literal("You have been matched with an opponent! Starting ranked battle...").withStyle(s -> s.withColor(0x55FF55)));
-            player.sendSystemMessage(Component.literal("Your opponent is " + match.getPlayer1().getOptionalServerPlayer().get().getName().plainCopy().getString()).withStyle(s -> s.withColor(0x55FF55)));
-            player.sendSystemMessage(Component.literal("Your opponent has an ELO of " + match.getPlayer1().getElo()).withStyle(s -> s.withColor(0x55FF55)));
-        });
-
-
-        // start battle with cobblemon
-        UUID battleId = match.startMatch();
-        rankedBattleTracker.markAsRanked(battleId, match);
-        System.out.println("Starting ranked match between " + match.getPlayer1().getId());
-        System.out.println(" and " + match.getPlayer2().getId() + " with battle ID " + battleId);
-
-        queue.remove(entry1.getPlayer().getId());
-        queue.remove(entry2.getPlayer().getId());
     }
 
     /**

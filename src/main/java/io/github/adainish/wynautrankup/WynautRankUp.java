@@ -11,6 +11,7 @@ import io.github.adainish.wynautrankup.database.DatabaseConfig;
 import io.github.adainish.wynautrankup.database.PlayerDataManager;
 import io.github.adainish.wynautrankup.database.DatabaseManager;
 import io.github.adainish.wynautrankup.handler.BattleResultHandler;
+import io.github.adainish.wynautrankup.placeholders.WynautPlaceholders;
 import io.github.adainish.wynautrankup.playerlistener.PlayerEvents;
 import io.github.adainish.wynautrankup.ranks.RankManager;
 import io.github.adainish.wynautrankup.season.RewardScheduler;
@@ -107,7 +108,7 @@ public class WynautRankUp implements ModInitializer {
         battleResultHandler.registerEventListeners();
         this.playerEvents = new PlayerEvents();
 
-
+        WynautPlaceholders.register();
         System.out.println("Wynaut Rank Up Loaded");
     }
 
