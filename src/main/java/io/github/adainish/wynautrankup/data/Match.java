@@ -22,6 +22,7 @@ import io.github.adainish.wynautrankup.WynautRankUp;
 import io.github.adainish.wynautrankup.util.BattleUtil;
 import io.github.adainish.wynautrankup.arenas.Arena;
 import io.github.adainish.wynautrankup.util.Location;
+import net.minecraft.server.MinecraftServer;
 
 import java.util.UUID;
 
@@ -85,13 +86,23 @@ public class Match
         Location tpbackLoc = WynautRankUp.instance.generalConfig.tpBackLocation;
 
         if (tpbackLoc != null) {
-            if (getPlayer1().getOptionalServerPlayer().isPresent()) {
-                tpbackLoc.teleport(getPlayer1().getOptionalServerPlayer().get());
-            }
-            if (getPlayer2().getOptionalServerPlayer().isPresent()) {
-                tpbackLoc.teleport(getPlayer2().getOptionalServerPlayer().get());
-            }
+            // Ensure teleports happen on the server thread to avoid delayed behavior
+            getPlayer1().getOptionalServerPlayer().ifPresent(sp -> {
+                MinecraftServer server = sp.getServer();
+                if (server != null) {
+                    server.execute(() -> tpbackLoc.teleport(sp));
+                } else {
+                    tpbackLoc.teleport(sp);
+                }
+            });
+            getPlayer2().getOptionalServerPlayer().ifPresent(sp -> {
+                MinecraftServer server = sp.getServer();
+                if (server != null) {
+                    server.execute(() -> tpbackLoc.teleport(sp));
+                } else {
+                    tpbackLoc.teleport(sp);
+                }
+            });
         }
-
     }
 }
