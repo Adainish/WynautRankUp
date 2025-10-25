@@ -25,6 +25,7 @@ import io.github.adainish.wynautrankup.tracker.RankedBattleTracker;
 import io.github.adainish.wynautrankup.util.BattleUtil;
 import io.github.adainish.wynautrankup.util.PermissionUtil;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Comparator;
@@ -197,44 +198,57 @@ public class MatchMakingQueue
             return;
         }
 
-        // Notify players and tell them the match is starting and who they are facing
-        ServerPlayer player1 = match.getPlayer1().getOptionalServerPlayer().get();
-        ServerPlayer player2 = match.getPlayer2().getOptionalServerPlayer().get();
+        MinecraftServer server = WynautRankUp.instance.server;
+        if (server == null) {
+            System.out.println("Server unavailable, cannot start match now.");
+            return;
+        }
 
-        //make players invulnerable for the duration of the battle
-        if (!player1.isInvulnerable())
-            player1.setInvulnerable(true);
-        if (!player2.isInvulnerable())
-            player2.setInvulnerable(true);
 
-        //retrieve any pokemon sent out from the party and return them to the party
-        Optional<List<Pokemon>> player1PartyPokemon = BattleUtil.getOptionalActivePartyPokemon(player1.getUUID());
-        player1PartyPokemon.ifPresent(pokemons -> pokemons.forEach(Pokemon::recall));
-        Optional<List<Pokemon>> player2PartyPokemon = BattleUtil.getOptionalActivePartyPokemon(player2.getUUID());
-        player2PartyPokemon.ifPresent(pokemons -> pokemons.forEach(Pokemon::recall));
+        server.execute(() -> {
+            // Mark arena in use on server thread
+            arena.setInUse(true);
 
-        //teleport players to arena
-        arena.teleportPlayersToArenaAsync(player1, player2).thenRun(() -> {
-            PermissionUtil.getOptionalServerPlayer(match.getPlayer1().getId()).ifPresent(player -> {
-                player.sendSystemMessage(Component.literal("You have been matched with an opponent! Starting ranked battle...").withStyle(s -> s.withColor(0x55FF55)));
-                player.sendSystemMessage(Component.literal("Your opponent is " + match.getPlayer2().getOptionalServerPlayer().get().getName().plainCopy().getString()).withStyle(s -> s.withColor(0x55FF55)));
-                player.sendSystemMessage(Component.literal("Your opponent has an ELO of " + match.getPlayer2().getElo()).withStyle(s -> s.withColor(0x55FF55)));
+            ServerPlayer player1 = match.getPlayer1().getOptionalServerPlayer().get();
+            ServerPlayer player2 = match.getPlayer2().getOptionalServerPlayer().get();
+
+            // make players invulnerable
+            if (!player1.isInvulnerable()) player1.setInvulnerable(true);
+            if (!player2.isInvulnerable()) player2.setInvulnerable(true);
+
+            // recall active party pokemon (safe to call on server thread)
+            Optional<List<Pokemon>> player1PartyPokemon = BattleUtil.getOptionalActivePartyPokemon(player1.getUUID());
+            player1PartyPokemon.ifPresent(pokemons -> pokemons.forEach(Pokemon::recall));
+            Optional<List<Pokemon>> player2PartyPokemon = BattleUtil.getOptionalActivePartyPokemon(player2.getUUID());
+            player2PartyPokemon.ifPresent(pokemons -> pokemons.forEach(Pokemon::recall));
+
+            // Teleport players to arena (teleportPlayersToArenaAsync uses server thread internally)
+            arena.teleportPlayersToArenaAsync(player1, player2).thenRun(() -> {
+                // Notify players and start the battle on server thread
+                PermissionUtil.getOptionalServerPlayer(match.getPlayer1().getId()).ifPresent(player -> {
+                    player.sendSystemMessage(Component.literal("You have been matched with an opponent! Starting ranked battle...").withStyle(s -> s.withColor(0x55FF55)));
+                    player.sendSystemMessage(Component.literal("Your opponent is " + match.getPlayer2().getOptionalServerPlayer().get().getName().plainCopy().getString()).withStyle(s -> s.withColor(0x55FF55)));
+                    player.sendSystemMessage(Component.literal("Your opponent has an ELO of " + match.getPlayer2().getElo()).withStyle(s -> s.withColor(0x55FF55)));
+                });
+                PermissionUtil.getOptionalServerPlayer(match.getPlayer2().getId()).ifPresent(player -> {
+                    player.sendSystemMessage(Component.literal("You have been matched with an opponent! Starting ranked battle...").withStyle(s -> s.withColor(0x55FF55)));
+                    player.sendSystemMessage(Component.literal("Your opponent is " + match.getPlayer1().getOptionalServerPlayer().get().getName().plainCopy().getString()).withStyle(s -> s.withColor(0x55FF55)));
+                    player.sendSystemMessage(Component.literal("Your opponent has an ELO of " + match.getPlayer1().getElo()).withStyle(s -> s.withColor(0x55FF55)));
+                });
+
+                UUID battleId = match.startMatch();
+                rankedBattleTracker.markAsRanked(battleId, match);
+                System.out.println("Starting ranked match between " + match.getPlayer1().getId() + " and " + match.getPlayer2().getId() + " with battle ID " + battleId);
+
+                // Remove from queue on executor thread safely
+                synchronized (queue) {
+                    queue.remove(entry1.getPlayer().getId());
+                    queue.remove(entry2.getPlayer().getId());
+                }
             });
-            PermissionUtil.getOptionalServerPlayer(match.getPlayer2().getId()).ifPresent(player -> {
-                player.sendSystemMessage(Component.literal("You have been matched with an opponent! Starting ranked battle...").withStyle(s -> s.withColor(0x55FF55)));
-                player.sendSystemMessage(Component.literal("Your opponent is " + match.getPlayer1().getOptionalServerPlayer().get().getName().plainCopy().getString()).withStyle(s -> s.withColor(0x55FF55)));
-                player.sendSystemMessage(Component.literal("Your opponent has an ELO of " + match.getPlayer1().getElo()).withStyle(s -> s.withColor(0x55FF55)));
-            });
-
-            UUID battleId = match.startMatch();
-            rankedBattleTracker.markAsRanked(battleId, match);
-            System.out.println("Starting ranked match between " + match.getPlayer1().getId());
-            System.out.println(" and " + match.getPlayer2().getId() + " with battle ID " + battleId);
-
-            queue.remove(entry1.getPlayer().getId());
-            queue.remove(entry2.getPlayer().getId());
         });
     }
+
 
     /**
      * Adds a player to the matchmaking queue.
@@ -269,53 +283,51 @@ public class MatchMakingQueue
             if (availableArena == null) return Optional.empty();
             List<PlayerQueueEntry> sortedEntries = queue.values().stream()
                     .sorted(Comparator.comparingInt(e -> e.getPlayer().getElo()))
-                    .toList();
+                    .collect(Collectors.toList());
 
-            int minDiff = Integer.MAX_VALUE;
-            PlayerQueueEntry best1 = null, best2 = null;
-
-            for (int i = 0; i < sortedEntries.size() - 1; i++) {
-                PlayerQueueEntry entry1 = sortedEntries.get(i);
-                PlayerQueueEntry entry2 = sortedEntries.get(i + 1);
-                int diff = Math.abs(entry1.getPlayer().getElo() - entry2.getPlayer().getElo());
-                if (diff <= 100 && diff < minDiff) {
-                    minDiff = diff;
-                    best1 = entry1;
-                    best2 = entry2;
-                }
-            }
-
-            // Check both players for being offline or already in a battle, remove and notify if needed
-            if (best1 != null && best2 != null) {
-                for (PlayerQueueEntry entry : List.of(best1, best2)) {
-                    UUID playerId = entry.getPlayer().getId();
-                    Optional<ServerPlayer> optionalPlayer = PermissionUtil.getOptionalServerPlayer(playerId);
-
-                    // Offline check
-                    if (optionalPlayer.isEmpty()) {
-                        queue.remove(playerId);
-                        optionalPlayer.ifPresent(player ->
-                                player.sendSystemMessage(Component.literal("You have been removed from the ranked queue because you went offline.").withStyle(s -> s.withColor(0xFF5555)))
-                        );
-                        return Optional.empty();
-                    }
-
-                    // Already in battle check
-                    if (Cobblemon.INSTANCE.getBattleRegistry().getBattleByParticipatingPlayerId(playerId) != null) {
-                        queue.remove(playerId);
-                        optionalPlayer.ifPresent(player ->
-                                player.sendSystemMessage(Component.literal("You have been removed from the ranked queue because you are already in a battle.").withStyle(s -> s.withColor(0xFF5555)))
-                        );
-                        return Optional.empty();
+            List<AbstractMap.SimpleEntry<PlayerQueueEntry, PlayerQueueEntry>> candidates = new ArrayList<>();
+            for (int i = 0; i < sortedEntries.size(); i++) {
+                for (int j = i + 1; j < sortedEntries.size(); j++) {
+                    PlayerQueueEntry e1 = sortedEntries.get(i);
+                    PlayerQueueEntry e2 = sortedEntries.get(j);
+                    int diff = Math.abs(e1.getPlayer().getElo() - e2.getPlayer().getElo());
+                    if (diff <= 100) {
+                        candidates.add(new AbstractMap.SimpleEntry<>(e1, e2));
                     }
                 }
             }
 
+            if (candidates.isEmpty()) return Optional.empty();
+            Random random = new Random();
+            // Pick a random candidate pair to avoid repeatedly selecting the same players
+            var chosen = candidates.get(random.nextInt(candidates.size()));
+            PlayerQueueEntry best1 = chosen.getKey();
+            PlayerQueueEntry best2 = chosen.getValue();
 
+            // Validate availability and not already in-battle
+            for (PlayerQueueEntry entry : List.of(best1, best2)) {
+                UUID playerId = entry.getPlayer().getId();
+                Optional<ServerPlayer> optionalPlayer = PermissionUtil.getOptionalServerPlayer(playerId);
 
-            if (best1 == null || best2 == null) return Optional.empty();
+                if (optionalPlayer.isEmpty()) {
+                    queue.remove(playerId);
+                    optionalPlayer.ifPresent(player ->
+                            player.sendSystemMessage(Component.literal("You have been removed from the ranked queue because you went offline.").withStyle(s -> s.withColor(0xFF5555)))
+                    );
+                    return Optional.empty();
+                }
+
+                if (Cobblemon.INSTANCE.getBattleRegistry().getBattleByParticipatingPlayerId(playerId) != null) {
+                    queue.remove(playerId);
+                    optionalPlayer.ifPresent(player ->
+                            player.sendSystemMessage(Component.literal("You have been removed from the ranked queue because you are already in a battle.").withStyle(s -> s.withColor(0xFF5555)))
+                    );
+                    return Optional.empty();
+                }
+            }
+
             Match match = new Match(best1.getPlayer(), best2.getPlayer());
-            match.setArena(availableArena); // Assign arena to match
+            match.setArena(availableArena);
             return Optional.of(match);
         }
     }
