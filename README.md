@@ -33,6 +33,12 @@ WynautRankUp provides robust tools for managing ranked battles, ELO ratings, and
 - **Configurable Settings**  
   Allows customization of ELO modifiers and teleport locations through a JSON configuration file.
 
+## Dependencies
+Impactor: https://modrinth.com/mod/impactor/versions?l=fabric
+
+MiniPlaceholders v2.3.0: https://modrinth.com/plugin/miniplaceholders/versions?l=fabric
+
+
 ## Configuration
 
 The main configuration file is located at `config/WynautRankup/general_config.json`.
