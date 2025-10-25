@@ -40,15 +40,16 @@ loom {
 repositories {
     mavenCentral()
     maven
-            {
-                name = 'ImpactDevelopment'
-                url = 'https://maven.impactdev.net/repository/development/'
-            }
+    {
+        name = 'ImpactDevelopment'
+        url = 'https://maven.impactdev.net/repository/development/'
+    }
 
     maven {
         name = 'm2'
         url = uri("https://plugins.gradle.org/m2/")
     }
+
     maven {
         name = 'Sonatype Snapshots'
         url = uri("https://oss.sonatype.org/content/repositories/snapshots/")
@@ -57,6 +58,15 @@ repositories {
     maven {
         name = 'Sonatype 01 Snapshots'
         url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+    }
+
+    // Needed for Impactor-Common
+    maven {
+        name 'luck-repo'
+        url 'https://repo.lucko.me/'
+        content {
+            includeModule 'me.lucko', 'spark-api'
+        }
     }
 }
 
@@ -75,7 +85,11 @@ dependencies {
     modImplementation("net.kyori:adventure-text-minimessage:4.17.0")
     compileOnly 'net.luckperms:api:5.4'
     implementation("net.kyori:adventure-text-serializer-ansi:4.14.0")
-    modImplementation(fileTree("libs") { include "*.jar" })
+    // modImplementation(fileTree("libs") { include "*.jar" })
+
+    // Full Fabric jar because dependency on sql driver
+    modImplementation('net.impactdev.impactor.launchers:fabric:5.3.4+1.21.1')
+    modImplementation("io.github.miniplaceholders:miniplaceholders-api:2.3.0")
 }
 
 processResources {
