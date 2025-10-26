@@ -61,5 +61,10 @@
       <option name="name" value="Sonatype 01 Snapshots" />
       <option name="url" value="https://s01.oss.sonatype.org/content/repositories/snapshots/" />
     </remote-repository>
+    <remote-repository>
+      <option name="id" value="luck-repo" />
+      <option name="name" value="luck-repo" />
+      <option name="url" value="https://repo.lucko.me/" />
+    </remote-repository>
   </component>
 </project>
