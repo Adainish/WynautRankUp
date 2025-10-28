@@ -44,7 +44,7 @@ public class BattleUtil
                     null,
                     null,
                     BattleFormat.Companion.getGEN_9_SINGLES(),
-                    true,
+                    false,
                     true,
                     trainer -> {
                         PartyStore party = null;
