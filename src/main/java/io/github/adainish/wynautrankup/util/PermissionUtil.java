@@ -22,6 +22,7 @@ import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.model.user.User;
 import net.luckperms.api.platform.PlayerAdapter;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -64,6 +65,23 @@ public class PermissionUtil
         {
         }
         return hasPermission;
+    }
+
+    public static boolean hasCachedLuckPerms(CommandSourceStack source, String node) {
+        if (!source.isPlayer()) return true; // allow console
+        try {
+            var player = source.getPlayerOrException();
+            // fast cached LP check
+            LuckPerms lp = LuckPermsProvider.get();
+            User user = lp.getUserManager().getUser(player.getUUID()); // cached user if loaded
+            if (user == null) {
+                // user not cached — fallback to vanilla op check (or return false)
+                return source.hasPermission(2);
+            }
+            return user.getCachedData().getPermissionData().checkPermission(node).asBoolean();
+        } catch (CommandSyntaxException e) {
+            return false;
+        }
     }
 
     /**

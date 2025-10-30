@@ -37,15 +37,10 @@ public class SeasonCommand {
         return Commands.literal("season")
                 .requires(source -> {
                     if (source.isPlayer()) {
-                        try {
-                            return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), PERMISSION_NODE);
-                        } catch (CommandSyntaxException e) {
-                            source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
-                        }
+                        return PermissionUtil.hasCachedLuckPerms(source, PERMISSION_NODE);
                     } else {
                         return true;
                     }
-                    return true;
                 })
                 .executes(ctx -> {
                     String id = WynautRankUp.instance.seasonManager.getCurrentSeasonId();
@@ -81,15 +76,10 @@ public class SeasonCommand {
                 .then(Commands.literal("reload")
                         .requires(source -> {
                             if (source.isPlayer()) {
-                                try {
-                                    return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), ADMIN_PERMISSION_NODE);
-                                } catch (CommandSyntaxException e) {
-                                    source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
-                                }
+                                return PermissionUtil.hasCachedLuckPerms(source, ADMIN_PERMISSION_NODE);
                             } else {
                                 return true;
                             }
-                            return true;
                         })
                         .executes(ctx -> {
                             WynautRankUp.instance.seasonManager.reloadSeasons();
@@ -100,15 +90,10 @@ public class SeasonCommand {
                 .then(Commands.literal("set")
                         .requires(source -> {
                             if (source.isPlayer()) {
-                                try {
-                                    return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), ADMIN_PERMISSION_NODE);
-                                } catch (CommandSyntaxException e) {
-                                    source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
-                                }
+                                return PermissionUtil.hasCachedLuckPerms(source, ADMIN_PERMISSION_NODE);
                             } else {
                                 return true;
                             }
-                            return true;
                         })
                         .then(Commands.argument("seasonName", StringArgumentType.word())
                                 .executes(ctx -> {
@@ -128,15 +113,10 @@ public class SeasonCommand {
                 .then(Commands.literal("create")
                         .requires(source -> {
                             if (source.isPlayer()) {
-                                try {
-                                    return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), ADMIN_PERMISSION_NODE);
-                                } catch (CommandSyntaxException e) {
-                                    source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
-                                }
+                                return PermissionUtil.hasCachedLuckPerms(source, ADMIN_PERMISSION_NODE);
                             } else {
                                 return true;
                             }
-                            return true;
                         })
                         .then(Commands.argument("seasonName", StringArgumentType.word())
                                 .then(Commands.argument("displayName", StringArgumentType.greedyString())
@@ -189,15 +169,10 @@ public class SeasonCommand {
                 .then(Commands.literal("forceend")
                         .requires(source -> {
                             if (source.isPlayer()) {
-                                try {
-                                    return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), ADMIN_PERMISSION_NODE);
-                                } catch (CommandSyntaxException e) {
-                                    source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
-                                }
+                                return PermissionUtil.hasCachedLuckPerms(source, ADMIN_PERMISSION_NODE);
                             } else {
                                 return true;
                             }
-                            return true;
                         })
                         .executes(ctx -> {
                             String currentId = WynautRankUp.instance.seasonManager.getCurrentSeasonId();

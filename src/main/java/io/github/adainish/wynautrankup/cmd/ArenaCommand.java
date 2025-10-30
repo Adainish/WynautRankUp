@@ -40,15 +40,10 @@ public class ArenaCommand {
         return Commands.literal("wynautarena")
                 .requires(source -> {
                     if (source.isPlayer()) {
-                        try {
-                            return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), PERMISSION_NODE);
-                        } catch (CommandSyntaxException e) {
-                            source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
-                        }
+                        return PermissionUtil.hasCachedLuckPerms(source, PERMISSION_NODE);
                     } else {
                         return true;
                     }
-                    return true;
                 })
                 .then(Commands.literal("help")
                         .executes(ctx -> {

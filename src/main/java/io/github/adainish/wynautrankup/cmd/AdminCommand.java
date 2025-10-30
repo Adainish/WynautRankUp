@@ -33,15 +33,10 @@ public class AdminCommand
         return LiteralArgumentBuilder.<CommandSourceStack>literal("wynautadmin")
                 .requires(source -> {
                     if (source.isPlayer()) {
-                        try {
-                            return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), PERMISSION_NODE);
-                        } catch (CommandSyntaxException e) {
-                            source.sendSystemMessage(Component.literal("Oh no, an error occurred! Please contact an administrator.").withStyle(ChatFormatting.RED));
-                        }
+                        return PermissionUtil.hasCachedLuckPerms(source, PERMISSION_NODE);
                     } else {
                         return true;
                     }
-                    return true;
                 })
                 .then(Commands.literal("help")
                         .executes(ctx -> {

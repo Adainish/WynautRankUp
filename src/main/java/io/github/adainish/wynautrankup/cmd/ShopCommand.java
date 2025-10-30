@@ -40,15 +40,10 @@ public class ShopCommand
         return Commands.literal("rankedshop")
                 .requires(source -> {
                     if (source.isPlayer()) {
-                        try {
-                            return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), PERMISSION_NODE);
-                        } catch (CommandSyntaxException e) {
-                            source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
-                        }
+                        return PermissionUtil.hasCachedLuckPerms(source, PERMISSION_NODE);
                     } else {
                         return true;
                     }
-                    return true;
                 })
                 .executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
@@ -59,15 +54,10 @@ public class ShopCommand
                 .then(Commands.literal("add")
                         .requires(source -> {
                             if (source.isPlayer()) {
-                                try {
-                                    return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), ADMIN_PERMISSION_NODE);
-                                } catch (CommandSyntaxException e) {
-                                    source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
-                                }
+                                return PermissionUtil.hasCachedLuckPerms(source, ADMIN_PERMISSION_NODE);
                             } else {
                                 return true;
                             }
-                            return true;
                         })
                         .then(Commands.argument("id", StringArgumentType.word())
                                 .then(Commands.argument("price", IntegerArgumentType.integer(0))
@@ -88,15 +78,10 @@ public class ShopCommand
                 .then(Commands.literal("remove")
                         .requires(source -> {
                             if (source.isPlayer()) {
-                                try {
-                                    return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), ADMIN_PERMISSION_NODE);
-                                } catch (CommandSyntaxException e) {
-                                    source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
-                                }
+                                return PermissionUtil.hasCachedLuckPerms(source, ADMIN_PERMISSION_NODE);
                             } else {
                                 return true;
                             }
-                            return true;
                         })
                         .then(Commands.argument("id", StringArgumentType.word())
                                 .executes(ctx -> {
@@ -120,15 +105,10 @@ public class ShopCommand
                 .then(Commands.literal("setbalance")
                         .requires(source -> {
                             if (source.isPlayer()) {
-                                try {
-                                    return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), ADMIN_PERMISSION_NODE);
-                                } catch (CommandSyntaxException e) {
-                                    source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
-                                }
+                                return PermissionUtil.hasCachedLuckPerms(source, ADMIN_PERMISSION_NODE);
                             } else {
                                 return true;
                             }
-                            return true;
                         })
                         .then(Commands.argument("player", StringArgumentType.word())
                                 .then(Commands.argument("amount", IntegerArgumentType.integer(0))
@@ -149,7 +129,13 @@ public class ShopCommand
                 )
 
                 .then(Commands.literal("addbalance")
-                        .requires(source -> PermissionUtil.hasPermission(source.getPlayer().getUUID(), ADMIN_PERMISSION_NODE))
+                        .requires(source -> {
+                            if (source.isPlayer()) {
+                                return PermissionUtil.hasCachedLuckPerms(source, ADMIN_PERMISSION_NODE);
+                            } else {
+                                return true;
+                            }
+                        })
                         .then(Commands.argument("player", StringArgumentType.word())
                                 .then(Commands.argument("amount", IntegerArgumentType.integer(1))
                                         .executes(ctx -> {
@@ -171,15 +157,10 @@ public class ShopCommand
                 .then(Commands.literal("help")
                         .requires(source -> {
                             if (source.isPlayer()) {
-                                try {
-                                    return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), ADMIN_PERMISSION_NODE);
-                                } catch (CommandSyntaxException e) {
-                                    source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
-                                }
+                                return PermissionUtil.hasCachedLuckPerms(source, ADMIN_PERMISSION_NODE);
                             } else {
                                 return true;
                             }
-                            return true;
                         })
                         .executes(ctx -> {
                             ctx.getSource().sendSuccess(() -> Component.literal(
@@ -197,15 +178,10 @@ public class ShopCommand
                 .then(Commands.literal("edit")
                         .requires(source -> {
                             if (source.isPlayer()) {
-                                try {
-                                    return PermissionUtil.hasPermission(source.getPlayerOrException().getUUID(), ADMIN_PERMISSION_NODE);
-                                } catch (CommandSyntaxException e) {
-                                    source.sendSystemMessage(Component.literal("Ruh roh raggy. You shouldn't try that.").withStyle(ChatFormatting.RED).withStyle(ChatFormatting.BOLD));
-                                }
+                                return PermissionUtil.hasCachedLuckPerms(source, ADMIN_PERMISSION_NODE);
                             } else {
                                 return true;
                             }
-                            return true;
                         })
                         .then(Commands.argument("id", StringArgumentType.word())
                                 .then(Commands.argument("field", StringArgumentType.word())
